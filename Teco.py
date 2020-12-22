@@ -1,6 +1,7 @@
 from frvsr import *
 
 VGG_MEAN = [123.68, 116.78, 103.94]
+identity = torch.nn.Identity()
 
 
 def VGG19_slim(input, reuse, deep_list=None, norm_flag=True):
@@ -142,11 +143,34 @@ def TecoGAN(r_inputs, r_targets, FLAGS, GAN_FLAG=True):
 
         if not FLAGS.pingpang:
             fnet_input_back = torch.cat((r_inputs[:, 2:t_size:3, :, :, :], r_inputs[:, 1:t_size:3, :, :, :]), dim=1)
-            fnet_input_back = torch.reshape(fnet_input_back,(t_batch, 2*output_channel, FLAGS.crop_size, FLAGS.crop_size))
+            fnet_input_back = torch.reshape(fnet_input_back,
+                                            (t_batch, 2 * output_channel, FLAGS.crop_size, FLAGS.crop_size))
 
             gen_flow_back_lr = fnet(fnet_input_back)
 
-            gen_flow_back = upscale_four(gen_flow_back_lr*4.0)
+            gen_flow_back = upscale_four(gen_flow_back_lr * 4.0)
 
-            gen_flow_back = torch.reshape(gen_flow_back, (FLAGS.batch_size,t_size//3, 2, FLAGS.crop_size*4, FLAGS.crop_size*4))
+            gen_flow_back = torch.reshape(gen_flow_back,
+                                          (FLAGS.batch_size, t_size // 3, 2, FLAGS.crop_size * 4, FLAGS.crop_size * 4))
 
+            T_inputs_VPre_batch = identity(gen_flow[:, 0:t_size:3, :, :, :])
+            T_inputs_V_batch = torch.zeros_like(T_inputs_VPre_batch)
+            T_inputs_VNxt_batch = T_inputs_V_batch
+
+        else:
+            T_inputs_VPre_batch = identity(gen_flow[:, 0:t_size:3, :, :, :])
+            T_inputs_V_batch = torch.zeros_like(T_inputs_VPre_batch)
+            T_inputs_VNxt_batch = gen_flow[:, -2:-1 - t_size:-3, :, :, :]
+
+        T_vel = torch.stack([T_inputs_VPre_batch, T_inputs_V_batch, T_inputs_VNxt_batch], axis=2)
+        T_vel = torch.reshape(T_vel, (FLAGS.batch_size * t_size, 2, FLAGS.crop_size * 4, FLAGS.crop_size * 4))
+        T_vel = T_vel.detach()
+
+    if (FLAGS.crop_dt < 1.0):
+        crop_size_dt = int(FLAGS.crop_size * 4 * FLAGS.crop_dt)
+        offset_dt = (FLAGS.crop_size * 4 - crop_size_dt) // 2
+        crop_size_dt = FLAGS.crop_size * 4 - offset_dt * 2
+        paddings = torch.tensor([[0, 0], [offset_dt, offset_dt], [offset_dt, offset_dt], [0, 0]])
+    real_warp0 = F.grid_sample(t_targets, T_vel)
+
+    real_warp = torch.reshape(real_warp0, (t_batch, 3, 3, FLAGS.crop_size*4, FLAGS.crop_size*4))
