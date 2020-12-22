@@ -1,4 +1,5 @@
 from frvsr import *
+from torchvision.transforms import functional
 
 VGG_MEAN = [123.68, 116.78, 103.94]
 identity = torch.nn.Identity()
@@ -166,11 +167,44 @@ def TecoGAN(r_inputs, r_targets, FLAGS, GAN_FLAG=True):
         T_vel = torch.reshape(T_vel, (FLAGS.batch_size * t_size, 2, FLAGS.crop_size * 4, FLAGS.crop_size * 4))
         T_vel = T_vel.detach()
 
-    if (FLAGS.crop_dt < 1.0):
-        crop_size_dt = int(FLAGS.crop_size * 4 * FLAGS.crop_dt)
-        offset_dt = (FLAGS.crop_size * 4 - crop_size_dt) // 2
-        crop_size_dt = FLAGS.crop_size * 4 - offset_dt * 2
-        paddings = torch.tensor([[0, 0], [offset_dt, offset_dt], [offset_dt, offset_dt], [0, 0]])
-    real_warp0 = F.grid_sample(t_targets, T_vel)
+        if (FLAGS.crop_dt < 1.0):
+            crop_size_dt = int(FLAGS.crop_size * 4 * FLAGS.crop_dt)
+            offset_dt = (FLAGS.crop_size * 4 - crop_size_dt) // 2
+            crop_size_dt = FLAGS.crop_size * 4 - offset_dt * 2
+            paddings = torch.tensor([[0, 0], [offset_dt, offset_dt], [offset_dt, offset_dt], [0, 0]])
+        real_warp0 = F.grid_sample(t_targets, T_vel)
 
-    real_warp = torch.reshape(real_warp0, (t_batch, 3, 3, FLAGS.crop_size*4, FLAGS.crop_size*4))
+        real_warp = torch.reshape(real_warp0, (t_batch, 9, FLAGS.crop_size * 4, FLAGS.crop_size * 4))
+        if (FLAGS.crop_dt < 1.0):
+            real_warp = functional.resized_crop(real_warp, offset_dt, offset_dt, crop_size_dt, crop_size_dt)
+
+        if (FLAGS.Dt_mergeDs):
+            if (FLAGS.crop_dt < 1.0):
+                real_warp = F.pad(real_warp, paddings, "constant")
+            before_warp = torch.reshape(t_targets, (t_batch, 9, FLAGS.crop_size * 4, FLAGS.crop_size * 4))
+            t_input = torch.reshape(r_inputs[:, :t_size, :, :, :], (t_batch, 9, FLAGS.crop_size * 4, FLAGS.crop_size * 4))
+            input_hi = functional.resize(t_input, [FLAGS.crop_size * 4, FLAGS.crop_size * 4])
+            real_warp = torch.cat((before_warp, real_warp, input_hi), dim=1)
+
+            tdiscrim_real_output, real_layers = discriminator_F(real_warp, FLAGS=FLAGS)
+
+        else:
+            tdiscrim_real_output = discriminator_F(real_warp,FLAGS=FLAGS)
+
+        fake_warp0 = F.grid_sample(t_gen_output, T_vel)
+
+        fake_warp = torch.reshape(fake_warp0, (t_batch, 9, FLAGS.crop_size*4, FLAGS.crop_size*4))
+        if(FLAGS.crop_dt < 1.0):
+            fake_warp = functional.resized_crop(fake_warp, offset_dt,offset_dt,crop_size_dt,crop_size_dt)
+
+        if(FLAGS.Dt_mergeDs):
+            if(FLAGS.crop_dt<1.0):
+                fake_warp = F.pad(fake_warp,paddings, "constant")
+            before_warp = torch.reshape(before_warp,(t_batch,9,FLAGS.crop_size*4,FLAGS.crop_size*4))
+            fake_warp = torch.cat((before_warp,fake_warp,input_hi),dim=1)
+            tdiscrim_fake_output, fake_layers = discriminator_F(fake_warp,FLAGS=FLAGS)
+
+        else:
+            tdiscrim_fake_output = discriminator_F(fake_warp,FLAGS=FLAGS)
+
+
