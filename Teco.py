@@ -87,7 +87,8 @@ class discriminator(nn.Module):
         return net, self.layer_list
 
 
-def TecoGAN(r_inputs, r_targets, discriminator_F, fnet, generator_F, FLAGS, Global_step, counter1, counter2, GAN_FLAG=True):
+def TecoGAN(r_inputs, r_targets, discriminator_F, fnet, generator_F, FLAGS, Global_step, counter1, counter2,
+            GAN_FLAG=True):
     Global_step += 1
 
     inputimages = FLAGS.RNN_N
@@ -403,10 +404,10 @@ def TecoGAN(r_inputs, r_targets, discriminator_F, fnet, generator_F, FLAGS, Glob
             update_list_name += ["withD_counter", "w_o_D_counter"]
 
     max_outputs = min(4, FLAGS.batch_size)
-    gif_sum = [gif_summary("LR", r_inputs, max_outputs=max_outputs,fps=3),
+    gif_sum = [gif_summary("LR", r_inputs, max_outputs=max_outputs, fps=3),
                gif_summary("HR", deprocess(r_targets), max_outputs=max_outputs, fps=3),
                gif_summary("Generated", deprocess(gen_outputs), max_outputs=max_outputs, fps=3),
-               gif_summary("WarpPreGen", deprocess(gen_warppre), max_outputs=max_outputs,fps=3)]
+               gif_summary("WarpPreGen", deprocess(gen_warppre), max_outputs=max_outputs, fps=3)]
     Network = collections.namedtuple('Network', 'gen_output, learning_rate, update_list, '
                                                 'update_list_name, update_list_avg, image_summary, global_step')
     return Network(
@@ -419,5 +420,6 @@ def TecoGAN(r_inputs, r_targets, discriminator_F, fnet, generator_F, FLAGS, Glob
         global_step=Global_step,
     )
 
-def FRVSR(r_inputs,r_targets,FLAGS,discriminator_F, fnet, generator_F, step, counter1, counter2,):
-    return TecoGAN(r_inputs,r_targets, discriminator_F, fnet, generator_F, FLAGS, step, counter1, counter2, )
+
+def FRVSR(r_inputs, r_targets, FLAGS, discriminator_F, fnet, generator_F, step, counter1, counter2, ):
+    return TecoGAN(r_inputs, r_targets, discriminator_F, fnet, generator_F, FLAGS, step, counter1, counter2, )
