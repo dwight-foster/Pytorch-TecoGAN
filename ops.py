@@ -50,42 +50,41 @@ def conv2_tran(batch_input, kernel=3, output_channel=64, stride=1, use_bias=True
 
 def conv2(batch_input, kernel=3, output_channels=64, stride=1, use_bias=True):
     padding = (kernel - 1) / 2
-    input_channels = batch_input.shape[1]
     if use_bias:
-        conv = nn.Conv2d(input_channels, output_channels, kernel, stride, padding=padding, bias=True)
+        conv = nn.Conv2d(batch_input, output_channels, kernel, stride, padding=padding, bias=True)
     else:
-        conv = nn.Conv2d(input_channels, output_channels, kernel, stride, padding=padding, bias=False)
-    return conv(batch_input)
+        conv = nn.Conv2d(batch_input, output_channels, kernel, stride, padding=padding, bias=False)
+    return conv
 
 
 def prelu(inputs):
     prelu = nn.PReLU(inputs.shape[1], 0)
-    return prelu(inputs)
+    return prelu
 
 
 def lrelu(inputs, alphas):
-    return F.leaky_relu(inputs, negative_slope=alphas)
+    return nn.LeakyReLU( negative_slope=alphas)
 
 
 def batchnorm(inputs, is_training):
-    batchn = nn.BatchNorm2d(inputs.shape[1], eps=0.001)
-    return batchn(inputs)
+    batchn = nn.BatchNorm2d(inputs, eps=0.001)
+    return batchn
 
 
-def maxpool(inputs):
-    pool = nn.MaxPool2d((2, 2))
-    return pool(inputs)
+def maxpool(kernel_size=(2,2)):
+    pool = nn.MaxPool2d(kernel_size)
+    return pool
 
 
 def denselayer(inputs, output_size):
-    fc = nn.Linear(inputs.shape[1], output_size)
+    fc = nn.Linear(inputs, output_size)
     torch.nn.init.xavier_uniform(fc.weight)
-    return fc(inputs)
+    return fc
 
 
 def pixelshuffle(inputs, scale=2):
     shuffle = nn.PixelShuffel(2)
-    return shuffle(inputs)
+    return shuffle
 
 
 def upscale_four(inputs):

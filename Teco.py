@@ -20,6 +20,7 @@ class EMA(nn.Module):
         self.shadow[name] = new_average.clone()
         return new_average
 
+
 def VGG19_slim(input, reuse, deep_list=None, norm_flag=True):
     input_img = deprocess(input)
     input_img_ab = input_img * 255.0 - torch.tensor(VGG_MEAN)
@@ -38,44 +39,54 @@ def VGG19_slim(input, reuse, deep_list=None, norm_flag=True):
     return results
 
 
-def discriminator_F(dis_inputs, FLAGS=None):
-    if FLAGS is None:
-        raise ValueError("No FLAGS is provided for generator")
-
-    def discriminator_block(inputs, output_channel, kernel_size, stride):
-        net = conv2(inputs, kernel_size, stride, use_bias=False)
-        net = batchnorm(net, is_training=True)
-        net = lrelu(net, 0.2)
-        return net
-
-    layer_list = []
-
-    net = conv2(dis_inputs, 3, 64, 1)
-    net = lrelu(net, 0.2)
-
-    # block1
-    net = discriminator_block(net, 64, 4, 2)
-    layer_list += [net]
-
-    # block2
-    net = discriminator_block(net, 64, 4, 2)
-    layer_list += [net]
-
-    # block3
-    net = discriminator_block(net, 128, 4, 2)
-    layer_list += [net]
-
-    # block4
-    net = discriminator_block(net, 256, 4, 2)
-    layer_list += [net]
-
-    net = denselayer(net, 1)
-    net = torch.sigmoid(net)
-
-    return net, layer_list
+def discriminator_block(inputs, output_channel, kernel_size, stride):
+    net = nn.Sequential(conv2(inputs, kernel_size, output_channel, stride, use_bias=False), batchnorm(is_training=True),
+                        lrelu(0.2))
+    return net
 
 
-def TecoGAN(r_inputs, r_targets, FLAGS, Global_step, GAN_FLAG=True):
+class discriminator(nn.Module):
+    def __init__(self, FLAGS=None):
+        super(discriminator, self).__init__()
+        if FLAGS is None:
+            raise ValueError("No FLAGS is provided for generator")
+
+        layer_list = []
+
+        self.conv = nn.Sequential(conv2(27, 3, 64, 1), lrelu(0.2))
+
+        # block1
+        self.block1 = discriminator_block(64, 64, 4, 2)
+        layer_list += [self.block1]
+
+        # block2
+        self.block2 = discriminator_block(64, 64, 4, 2)
+        layer_list += [self.block2]
+
+        # block3
+        self.block3 = discriminator_block(64, 128, 4, 2)
+        layer_list += [self.block3]
+
+        # block4
+        self.block4 = discriminator_block(128, 256, 4, 2)
+        layer_list += [self.block4]
+
+        self.fc = denselayer(16384, 1)
+        self.layer_list = layer_list
+
+    def forward(self, x):
+        net = self.conv(x)
+        net = self.block1(net)
+        net = self.block2(net)
+        net = self.block3(net)
+        net = self.block4(net)
+        net = net.view(net.shape[0], -1)
+        net = self.fc(net)
+        net = torch.sigmoid(net)
+        return net, self.layer_list
+
+
+def TecoGAN(r_inputs, r_targets, discriminator_F, generator_F, FLAGS, Global_step, GAN_FLAG=True):
     Global_step += 1
     inputimages = FLAGS.RNN_N
     if FLAGS.pingpang:
@@ -303,20 +314,21 @@ def TecoGAN(r_inputs, r_targets, FLAGS, Global_step, GAN_FLAG=True):
         update_list += [pploss]
         update_list_name += ["PingPang"]
 
-    if(GAN_FLAG):
+    if (GAN_FLAG):
         t_adversarial_loss = torch.mean(-torch.log(tdiscrim_fake_output + FLAGS.EPS))
-        dt_ratio = torch.min(FLAGS.Dt_ratio_max, FLAGS.Dt_ratio_0 + FLAGS.Dt_ratio_add * torch.tensor(Global_step,dtype=torch.float32))
+        dt_ratio = torch.min(FLAGS.Dt_ratio_max,
+                             FLAGS.Dt_ratio_0 + FLAGS.Dt_ratio_add * torch.tensor(Global_step, dtype=torch.float32))
 
     gen_loss += FLAGS.ratio * t_adversarial_loss
     update_list += [t_adversarial_loss]
     update_list_name += ["t_adversarial_loss"]
 
-    if(FLAGS.D_LAYERLOSS):
+    if (FLAGS.D_LAYERLOSS):
         gen_loss += sum_layer_loss * dt_ratio
 
-    if(GAN_FLAG):
-        t_discrim_fake_loss = torch.log(1-tdiscrim_fake_output+FLAGS.EPS)
-        t_discrim_real_loss = torch.log(tdiscrim_real_output+FLAGS.EPS)
+    if (GAN_FLAG):
+        t_discrim_fake_loss = torch.log(1 - tdiscrim_fake_output + FLAGS.EPS)
+        t_discrim_real_loss = torch.log(tdiscrim_real_output + FLAGS.EPS)
 
         t_discrim_loss = torch.mean(-(t_discrim_fake_loss + t_discrim_real_loss))
         t_balance = torch.mean(t_discrim_real_loss) + t_adversarial_loss
@@ -327,7 +339,7 @@ def TecoGAN(r_inputs, r_targets, FLAGS, Global_step, GAN_FLAG=True):
         update_list += [torch.mean(tdiscrim_real_output), torch.mean(tdiscrim_fake_output)]
         update_list_name += ["t_discrim_real_output", "t_discrim_fake_output"]
 
-        if(FLAGS.D_LAYERLOSS and Fix_margin>0.0):
+        if (FLAGS.D_LAYERLOSS and Fix_margin > 0.0):
             discrim_loss = t_discrim_loss + d_layer_loss * dt_ratio
 
         else:
@@ -338,3 +350,18 @@ def TecoGAN(r_inputs, r_targets, FLAGS, Global_step, GAN_FLAG=True):
         tb_exp_averager.register("TB_average", init_average)
         tb = tb_exp_averager.forward("TB_average", t_balance)
 
+        tdis_learning_rate = learning_rate
+        if (not FLAGS.Dt_mergeDs):
+            tdis_learning_rate = tdis_learning_rate * 0.3
+
+        tdiscrim_optimizer = torch.optim.Adam(discriminator_F.params(), tdis_learning_rate, betas=(FLAGS.beta, 0.999),
+                                              eps=FLAGS.adameps)
+        discrim_loss.backward()
+        tdiscrim_optimizer.zero_grad()
+        tdiscrim_optimizer.step()
+
+        update_list += [gen_loss]
+        update_list_name += ["All_loss_Gen"]
+
+        tb_exp_averager.register("Loss_average", init_average)
+        update_list_avg = [tb_exp_averager.forward("Loss_average", _) for _ in update_list]
