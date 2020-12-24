@@ -18,9 +18,9 @@ def up_block(inputs, output_channel=64, stride=1):
     return net
 
 
-class fnet(nn.Module):
+class f_net(nn.Module):
     def __init__(self):
-        super(fnet, self).__init__()
+        super(f_net, self).__init__()
         self.down1 = down_block(3, 32)
         self.down2 = down_block(64, 64)
         self.down3 = down_block(128, 128)

@@ -1,5 +1,6 @@
 from frvsr import *
 from torchvision.transforms import functional
+import collections
 
 VGG_MEAN = [123.68, 116.78, 103.94]
 identity = torch.nn.Identity()
@@ -86,8 +87,9 @@ class discriminator(nn.Module):
         return net, self.layer_list
 
 
-def TecoGAN(r_inputs, r_targets, discriminator_F, generator_F, FLAGS, Global_step, GAN_FLAG=True):
+def TecoGAN(r_inputs, r_targets, discriminator_F, fnet, generator_F, FLAGS, Global_step, counter1, counter2, GAN_FLAG=True):
     Global_step += 1
+
     inputimages = FLAGS.RNN_N
     if FLAGS.pingpang:
         r_inputs_rev_input = r_inputs[:, -2::-1, :, :, :]
@@ -357,11 +359,65 @@ def TecoGAN(r_inputs, r_targets, discriminator_F, generator_F, FLAGS, Global_ste
         tdiscrim_optimizer = torch.optim.Adam(discriminator_F.params(), tdis_learning_rate, betas=(FLAGS.beta, 0.999),
                                               eps=FLAGS.adameps)
         discrim_loss.backward()
-        tdiscrim_optimizer.zero_grad()
-        tdiscrim_optimizer.step()
 
         update_list += [gen_loss]
         update_list_name += ["All_loss_Gen"]
 
         tb_exp_averager.register("Loss_average", init_average)
         update_list_avg = [tb_exp_averager.forward("Loss_average", _) for _ in update_list]
+
+        gen_optimizer = torch.optim.Adam(generator_F.params(), betas=(FLAGS.beta, 0.999), eps=FLAGS.adameps)
+        fnet_optimizer = torch.optim.Adam(fnet.paramaters(), betas=(FLAGS.beta, 0.999), eps=FLAGS.adameps)
+        fnet_loss = FLAGS.warp_scaling * warp_loss + gen_loss
+        if (not GAN_FLAG):
+            fnet_loss.backward()
+            gen_loss.backward()
+            gen_optimizer.zero_grad()
+            fnet_optimizer.zero_grad()
+            gen_optimizer.step()
+            fnet_optimizer.step()
+        else:
+            update_list_avg += [tb, dt_ratio]
+            update_list_name += ["t_balance", "Dst_ratio"]
+
+            if tb < FLAGS.Dbalance:
+                tdiscrim_optimizer.step()
+                fnet_loss.backward()
+                gen_loss.backward()
+                fnet_optimizer.zero_grad()
+                gen_optimizer.zero_grad()
+                fnet_optimizer.step()
+                gen_optimizer.step()
+                counter1 += 1
+
+            elif tb > FLAGS.Dbalance:
+                fnet_loss.backward()
+                gen_loss.backward()
+                fnet_optimizer.zero_grad()
+                gen_optimizer.zero_grad()
+                fnet_optimizer.step()
+                gen_optimizer.step()
+                counter2 += 1
+
+            update_list_avg += [counter1, counter2]
+            update_list_name += ["withD_counter", "w_o_D_counter"]
+
+    max_outputs = min(4, FLAGS.batch_size)
+    gif_sum = [gif_summary("LR", r_inputs, max_outputs=max_outputs,fps=3),
+               gif_summary("HR", deprocess(r_targets), max_outputs=max_outputs, fps=3),
+               gif_summary("Generated", deprocess(gen_outputs), max_outputs=max_outputs, fps=3),
+               gif_summary("WarpPreGen", deprocess(gen_warppre), max_outputs=max_outputs,fps=3)]
+    Network = collections.namedtuple('Network', 'gen_output, learning_rate, update_list, '
+                                                'update_list_name, update_list_avg, image_summary, global_step')
+    return Network(
+        gen_output=s_gen_output,
+        learning_rate=learning_rate,
+        update_list=update_list,
+        update_list_name=update_list_name,
+        update_list_avg=update_list_avg,
+        image_summary=gif_sum,
+        global_step=Global_step,
+    )
+
+def FRVSR(r_inputs,r_targets,FLAGS,discriminator_F, fnet, generator_F, step, counter1, counter2,):
+    return TecoGAN(r_inputs,r_targets, discriminator_F, fnet, generator_F, FLAGS, step, counter1, counter2, )
