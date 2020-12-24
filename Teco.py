@@ -5,6 +5,21 @@ VGG_MEAN = [123.68, 116.78, 103.94]
 identity = torch.nn.Identity()
 
 
+class EMA(nn.Module):
+    def __init__(self, mu):
+        super(EMA, self).__init__()
+        self.mu = mu
+        self.shadow = {}
+
+    def register(self, name, val):
+        self.shadow[name] = val.clone()
+
+    def forward(self, name, x):
+        assert name in self.shadow
+        new_average = self.mu * x + (1.0 - self.mu) * self.shadow[name]
+        self.shadow[name] = new_average.clone()
+        return new_average
+
 def VGG19_slim(input, reuse, deep_list=None, norm_flag=True):
     input_img = deprocess(input)
     input_img_ab = input_img * 255.0 - torch.tensor(VGG_MEAN)
@@ -60,7 +75,8 @@ def discriminator_F(dis_inputs, FLAGS=None):
     return net, layer_list
 
 
-def TecoGAN(r_inputs, r_targets, FLAGS, GAN_FLAG=True):
+def TecoGAN(r_inputs, r_targets, FLAGS, Global_step, GAN_FLAG=True):
+    Global_step += 1
     inputimages = FLAGS.RNN_N
     if FLAGS.pingpang:
         r_inputs_rev_input = r_inputs[:, -2::-1, :, :, :]
@@ -83,7 +99,8 @@ def TecoGAN(r_inputs, r_targets, FLAGS, GAN_FLAG=True):
     gen_flow = upscale_four(gen_flow_lr * 4.)
     gen_flow = torch.reshape(gen_flow,
                              (FLAGS.batch_size, (inputimages - 1), output_channel, FLAGS.crop_size, FLAGS.crop_size))
-
+    input_frames = torch.reshape(Frame_t,
+                                 (FLAGS.batch_size * inputimages - 1, output_channel, FLAGS.crop_size, FLAGS.crop_size))
     s_input_warp = F.grid_sample(torch.reshape(Frame_t_pre, (
         FLAGS.batch_size * (inputimages - 1), output_channel, FLAGS.crop_size, FLAGS.crop_size)), gen_flow_lr)
 
@@ -182,29 +199,142 @@ def TecoGAN(r_inputs, r_targets, FLAGS, GAN_FLAG=True):
             if (FLAGS.crop_dt < 1.0):
                 real_warp = F.pad(real_warp, paddings, "constant")
             before_warp = torch.reshape(t_targets, (t_batch, 9, FLAGS.crop_size * 4, FLAGS.crop_size * 4))
-            t_input = torch.reshape(r_inputs[:, :t_size, :, :, :], (t_batch, 9, FLAGS.crop_size * 4, FLAGS.crop_size * 4))
+            t_input = torch.reshape(r_inputs[:, :t_size, :, :, :],
+                                    (t_batch, 9, FLAGS.crop_size * 4, FLAGS.crop_size * 4))
             input_hi = functional.resize(t_input, [FLAGS.crop_size * 4, FLAGS.crop_size * 4])
             real_warp = torch.cat((before_warp, real_warp, input_hi), dim=1)
 
             tdiscrim_real_output, real_layers = discriminator_F(real_warp, FLAGS=FLAGS)
 
         else:
-            tdiscrim_real_output = discriminator_F(real_warp,FLAGS=FLAGS)
+            tdiscrim_real_output = discriminator_F(real_warp, FLAGS=FLAGS)
 
         fake_warp0 = F.grid_sample(t_gen_output, T_vel)
 
-        fake_warp = torch.reshape(fake_warp0, (t_batch, 9, FLAGS.crop_size*4, FLAGS.crop_size*4))
-        if(FLAGS.crop_dt < 1.0):
-            fake_warp = functional.resized_crop(fake_warp, offset_dt,offset_dt,crop_size_dt,crop_size_dt)
+        fake_warp = torch.reshape(fake_warp0, (t_batch, 9, FLAGS.crop_size * 4, FLAGS.crop_size * 4))
+        if (FLAGS.crop_dt < 1.0):
+            fake_warp = functional.resized_crop(fake_warp, offset_dt, offset_dt, crop_size_dt, crop_size_dt)
 
-        if(FLAGS.Dt_mergeDs):
-            if(FLAGS.crop_dt<1.0):
-                fake_warp = F.pad(fake_warp,paddings, "constant")
-            before_warp = torch.reshape(before_warp,(t_batch,9,FLAGS.crop_size*4,FLAGS.crop_size*4))
-            fake_warp = torch.cat((before_warp,fake_warp,input_hi),dim=1)
-            tdiscrim_fake_output, fake_layers = discriminator_F(fake_warp,FLAGS=FLAGS)
+        if (FLAGS.Dt_mergeDs):
+            if (FLAGS.crop_dt < 1.0):
+                fake_warp = F.pad(fake_warp, paddings, "constant")
+            before_warp = torch.reshape(before_warp, (t_batch, 9, FLAGS.crop_size * 4, FLAGS.crop_size * 4))
+            fake_warp = torch.cat((before_warp, fake_warp, input_hi), dim=1)
+            tdiscrim_fake_output, fake_layers = discriminator_F(fake_warp, FLAGS=FLAGS)
 
         else:
-            tdiscrim_fake_output = discriminator_F(fake_warp,FLAGS=FLAGS)
+            tdiscrim_fake_output = discriminator_F(fake_warp, FLAGS=FLAGS)
 
+        if (FLAGS.D_LAYERLOSS):
+            Fix_Range = 0.02
+            Fix_margin = 0.0
+
+            sum_layer_loss = 0
+            d_layer_loss = 0
+
+            layer_loss_list = []
+            layer_n = len(real_layers)
+
+            layer_norm = [12.0, 14.0, 24.0, 100.0]
+            for layer_i in range(layer_n):
+                real_layer = real_layers[layer_i]
+                false_layer = fake_layers[layer_i]
+
+                layer_diff = real_layer - false_layer
+                layer_loss = torch.mean(torch.sum(torch.abs(layer_diff), dim=[3]))
+
+                layer_loss_list += [layer_loss]
+
+                scaled_layer_loss = Fix_Range * layer_loss / layer_norm[layer_i]
+
+                sum_layer_loss += scaled_layer_loss
+                if Fix_margin > 0.0:
+                    d_layer_loss += torch.max(0.0, torch.tensor(Fix_margin - scaled_layer_loss))
+
+            update_list += layer_loss_list
+            update_list_name += [("D_layer_%d_loss" % _) for _ in range(layer_n)]
+            update_list += [sum_layer_loss]
+            update_list_name += ["D_layer_loss_sum"]
+
+            if Fix_margin > 0.0:
+                update_list += [d_layer_loss]
+                update_list_name += ["D_layer_loss_for_D_sum"]
+    diff1_mse = s_gen_output - s_targets
+
+    content_loss = torch.mean(torch.sum(torch.square(diff1_mse), dim=[3]))
+    update_list += [content_loss]
+    update_list_name += ["l2_content_loss"]
+    gen_loss = content_loss
+
+    diff2_mse = input_frames - s_input_warp
+
+    warp_loss = torch.mean(torch.sum(torch.square(diff2_mse), dim=[3]))
+    update_list += [warp_loss]
+    update_list_name += ["l2_warp_loss"]
+
+    vgg_loss = None
+    vgg_loss_list = []
+    if FLAGS.vgg_scaling > 0.0:
+        vgg_wei_list = [1.0, 1.0, 1.0, 1.0]
+        vgg_loss = 0
+        vgg_layer_n = len(vgg_layer_labels)
+
+        for layer_i in range(vgg_layer_n):
+            curvgg_diff = torch.sum(gen_vgg[vgg_layer_labels[layer_i]] * target_vgg[vgg_layer_labels[layer_i]], dim=[3])
+            scaled_layer_loss = vgg_wei_list[layer_i] * curvgg_diff
+            vgg_loss_list += [curvgg_diff]
+            vgg_loss += scaled_layer_loss
+
+        gen_loss += FLAGS.vgg_scaling * vgg_loss
+        vgg_loss_list += [vgg_loss]
+
+        update_list += vgg_loss_list
+        update_list_name += ["vgg_loss_%d" % (_ + 2) for _ in range(len(vgg_loss_list) - 1)]
+        update_list_name += ["vgg_all"]
+
+    if FLAGS.pingpang:
+        gen_out_first = gen_outputs[:, 0:FLAGS.RNN_N - 1, :, :, :]
+        gen_out_last_rev = gen_outputs[:, -1:-FLAGS.RNN_N:-1, :, :, :]
+
+        pploss = torch.mean(torch.abs(gen_out_first - gen_out_last_rev))
+
+        if FLAGS.pp_scaling > 0:
+            gen_loss += pploss * FLAGS.pp_scaling
+        update_list += [pploss]
+        update_list_name += ["PingPang"]
+
+    if(GAN_FLAG):
+        t_adversarial_loss = torch.mean(-torch.log(tdiscrim_fake_output + FLAGS.EPS))
+        dt_ratio = torch.min(FLAGS.Dt_ratio_max, FLAGS.Dt_ratio_0 + FLAGS.Dt_ratio_add * torch.tensor(Global_step,dtype=torch.float32))
+
+    gen_loss += FLAGS.ratio * t_adversarial_loss
+    update_list += [t_adversarial_loss]
+    update_list_name += ["t_adversarial_loss"]
+
+    if(FLAGS.D_LAYERLOSS):
+        gen_loss += sum_layer_loss * dt_ratio
+
+    if(GAN_FLAG):
+        t_discrim_fake_loss = torch.log(1-tdiscrim_fake_output+FLAGS.EPS)
+        t_discrim_real_loss = torch.log(tdiscrim_real_output+FLAGS.EPS)
+
+        t_discrim_loss = torch.mean(-(t_discrim_fake_loss + t_discrim_real_loss))
+        t_balance = torch.mean(t_discrim_real_loss) + t_adversarial_loss
+
+        update_list += [t_discrim_loss]
+        update_list_name += ["t_discrim_loss"]
+
+        update_list += [torch.mean(tdiscrim_real_output), torch.mean(tdiscrim_fake_output)]
+        update_list_name += ["t_discrim_real_output", "t_discrim_fake_output"]
+
+        if(FLAGS.D_LAYERLOSS and Fix_margin>0.0):
+            discrim_loss = t_discrim_loss + d_layer_loss * dt_ratio
+
+        else:
+            discrim_loss = t_discrim_loss
+
+        tb_exp_averager = EMA(0.99)
+        init_average = torch.zeros_like(t_balance)
+        tb_exp_averager.register("TB_average", init_average)
+        tb = tb_exp_averager.forward("TB_average", t_balance)
 
