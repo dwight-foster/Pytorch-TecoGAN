@@ -52,39 +52,39 @@ class discriminator(nn.Module):
         if FLAGS is None:
             raise ValueError("No FLAGS is provided for generator")
 
-        layer_list = []
 
         self.conv = nn.Sequential(conv2(27, 3, 64, 1), lrelu(0.2))
 
         # block1
         self.block1 = discriminator_block(64, 64, 4, 2)
-        layer_list += [self.block1]
 
         # block2
         self.block2 = discriminator_block(64, 64, 4, 2)
-        layer_list += [self.block2]
 
         # block3
         self.block3 = discriminator_block(64, 128, 4, 2)
-        layer_list += [self.block3]
 
         # block4
         self.block4 = discriminator_block(128, 256, 4, 2)
-        layer_list += [self.block4]
 
         self.fc = denselayer(16384, 1)
-        self.layer_list = layer_list
 
     def forward(self, x):
+        layer_list = []
         net = self.conv(x)
+        layer_list.append(net)
         net = self.block1(net)
+        layer_list.append(net)
         net = self.block2(net)
+        layer_list.append(net)
         net = self.block3(net)
+        layer_list.append(net)
         net = self.block4(net)
+        layer_list.append(net)
         net = net.view(net.shape[0], -1)
         net = self.fc(net)
         net = torch.sigmoid(net)
-        return net, self.layer_list
+        return net, layer_list
 
 
 def TecoGAN(r_inputs, r_targets, discriminator_F, fnet, generator_F, FLAGS, Global_step, counter1, counter2,
@@ -409,7 +409,7 @@ def TecoGAN(r_inputs, r_targets, discriminator_F, fnet, generator_F, FLAGS, Glob
                gif_summary("Generated", deprocess(gen_outputs), max_outputs=max_outputs, fps=3),
                gif_summary("WarpPreGen", deprocess(gen_warppre), max_outputs=max_outputs, fps=3)]
     Network = collections.namedtuple('Network', 'gen_output, learning_rate, update_list, '
-                                                'update_list_name, update_list_avg, image_summary, global_step')
+                                                'update_list_name, update_list_avg, image_summary, global_step, d_loss, gen_loss, fnet_loss')
     return Network(
         gen_output=s_gen_output,
         learning_rate=learning_rate,
@@ -418,8 +418,13 @@ def TecoGAN(r_inputs, r_targets, discriminator_F, fnet, generator_F, FLAGS, Glob
         update_list_avg=update_list_avg,
         image_summary=gif_sum,
         global_step=Global_step,
+        d_loss=discrim_loss,
+        gen_loss=gen_loss,
+        fnet_loss=fnet_loss
+
+
     )
 
 
-def FRVSR(r_inputs, r_targets, FLAGS, discriminator_F, fnet, generator_F, step, counter1, counter2, ):
-    return TecoGAN(r_inputs, r_targets, discriminator_F, fnet, generator_F, FLAGS, step, counter1, counter2, )
+def FRVSR(r_inputs, r_targets, FLAGS, discriminator_F, fnet, generator_F, step, counter1, counter2 ):
+    return TecoGAN(r_inputs, r_targets, discriminator_F, fnet, generator_F, FLAGS, step, counter1, counter2 )
