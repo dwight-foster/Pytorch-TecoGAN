@@ -29,7 +29,7 @@ class f_net(nn.Module):
         self.up2 = up_block(256, 128)
         self.up3 = up_block(128, 64)
 
-        self.output_block = nn.Sequential(conv2(64, 3, 32, 1), lrelu(32, 0.2), conv2(32, 3, 2, 1))
+        self.output_block = nn.Sequential(conv2(64, 3, 32, 1), lrelu(0.2), conv2(32, 3, 2, 1))
 
     def forward(self, x):
         net = self.down1(x)

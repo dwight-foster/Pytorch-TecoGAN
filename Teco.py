@@ -41,7 +41,7 @@ def VGG19_slim(input, reuse, deep_list=None, norm_flag=True):
 
 
 def discriminator_block(inputs, output_channel, kernel_size, stride):
-    net = nn.Sequential(conv2(inputs, kernel_size, output_channel, stride, use_bias=False), batchnorm(is_training=True),
+    net = nn.Sequential(conv2(inputs, kernel_size, output_channel, stride, use_bias=False), batchnorm(output_channel, is_training=True),
                         lrelu(0.2))
     return net
 
@@ -50,7 +50,7 @@ class discriminator(nn.Module):
     def __init__(self, FLAGS=None):
         super(discriminator, self).__init__()
         if FLAGS is None:
-            raise ValueError("No FLAGS is provided for generator")
+            raise ValueError("No FLAGS is provided for discriminator")
 
 
         self.conv = nn.Sequential(conv2(27, 3, 64, 1), lrelu(0.2))
@@ -94,13 +94,13 @@ def TecoGAN(r_inputs, r_targets, discriminator_F, fnet, generator_F, FLAGS, Glob
     inputimages = FLAGS.RNN_N
     if FLAGS.pingpang:
         r_inputs_rev_input = r_inputs[:, -2::-1, :, :, :]
+
         r_targets_rev_input = r_targets[:, -2::-1, :, :, :]
         r_inputs = torch.cat([r_inputs, r_inputs_rev_input], axis=1)
         r_targets = torch.cat([r_targets, r_targets_rev_input], axis=1)
         inputimages = FLAGS.RNN_N * 2 - 1
 
-    output_channel = list(r_targets.shape())[-1]
-
+    output_channel = r_targets.shape[2]
     gen_outputs, gen_warppre = [], []
     learning_rate = FLAGS.learning_rate
     Frame_t_pre = r_inputs[:, 0:-1, :, :, :]

@@ -12,7 +12,7 @@ from PIL import Image
 import argparse
 
 parser = argparse.ArgumentParser()
-parser.add_argument("input_video_dir", nargs="?", type=str, default="TrainingDataPath")
+parser.add_argument("input_video_dir", nargs="?", type=str, default="../TrainingDataPath")
 parser.add_argument("str_dir", nargs="?", type=int, default=2000)
 parser.add_argument("end_dir", nargs="?", type=int, default=2400)
 parser.add_argument("max_frm", nargs="?", default=119)
@@ -66,8 +66,8 @@ class train_dataset(Dataset):
     def __init__(self, FLAGS):
         if FLAGS.input_video_dir == '':
             raise ValueError('Video input directory input_video_dir is not provided')
-        if not os.path.exists(FLAGS.input_video_dir):
-            raise ValueError('Video input directory not found')
+        #if not os.path.exists(FLAGS.input_video_dir):
+        #    raise ValueError('Video input directory not found')
         self.image_list_len = []
         image_set_lists = []
         for dir_i in range(FLAGS.str_dir, FLAGS.end_dir + 1):
@@ -113,8 +113,3 @@ class train_dataset(Dataset):
         lr_images = torch.cat(lr_images, dim=0)
         return [lr_images.float(), hr_images.float()]
 
-
-train_data = train_dataset(args)
-train_dataloader = DataLoader(train_data, 11, True)
-lr, hr = next(iter(train_dataloader))
-print(hr[0])

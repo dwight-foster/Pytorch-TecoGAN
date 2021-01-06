@@ -38,14 +38,13 @@ def deprocessLr(image):
     return identity(image)
 
 
-def conv2_tran(batch_input, kernel=3, output_channel=64, stride=1, use_bias=True):
+def conv2_tran(input_channels, kernel=3, output_channel=64, stride=1, use_bias=True):
     padding = (kernel - 1) / 2
-    input_channels = batch_input.shape[1]
+
     if use_bias:
         trans_conv = nn.ConvTranspose2d(input_channels, output_channel, kernel, stride, padding=padding, bias=True)
     else:
         trans_conv = nn.ConvTranspose2d(input_channels, output_channel, kernel, stride, padding=padding, bias=False)
-    return trans_conv(batch_input)
 
 
 def conv2(batch_input, kernel=3, output_channels=64, stride=1, use_bias=True):
@@ -62,8 +61,8 @@ def prelu(inputs):
     return prelu
 
 
-def lrelu(inputs, alphas):
-    return nn.LeakyReLU( negative_slope=alphas)
+def lrelu(alphas):
+    return nn.LeakyReLU(negative_slope=alphas)
 
 
 def batchnorm(inputs, is_training):
@@ -71,14 +70,14 @@ def batchnorm(inputs, is_training):
     return batchn
 
 
-def maxpool(kernel_size=(2,2)):
+def maxpool(kernel_size=(2, 2)):
     pool = nn.MaxPool2d(kernel_size)
     return pool
 
 
 def denselayer(inputs, output_size):
     fc = nn.Linear(inputs, output_size)
-    torch.nn.init.xavier_uniform(fc.weight)
+    torch.nn.init.xavier_uniform_(fc.weight)
     return fc
 
 
@@ -188,6 +187,7 @@ class VGG19(nn.Module):
         self.Conv5_4 = nn.Sequential(nn.Conv2d(512, 512, padding=1), nn.ReLU())
         self.pool5 = nn.MaxPool2d((2, 2), stride=2)
         self.end_points = {}
+
     def forward(self, x):
         x = self.Conv1_1(x)
         self.end_points["vgg_19/conv1_1"] = x
