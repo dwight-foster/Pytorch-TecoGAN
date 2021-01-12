@@ -1,5 +1,19 @@
 import numpy as np
-import os, math, time, collections, numpy as np
+import os
+import random as rn
+from torchvision import transforms
+import torch
+from torch.utils.data import Dataset, DataLoader
+from PIL import Image
+import sys, subprocess
+
+from ops import *
+from dataloader import train_dataset
+from frvsr import generator, f_net
+from Teco import FRVSR, discriminator
+
+import argparse
+
 
 ''' TF_CPP_MIN_LOG_LEVEL
 0 = all messages are logged (default behavior)
@@ -8,9 +22,6 @@ import os, math, time, collections, numpy as np
 3 = INFO, WARNING, and ERROR messages are not printed
 Disable Logs for now '''
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
-import torch
-from torch.utils.data import DataLoader
-import random as rn
 
 # fix all randomness, except for multi-treading or GPU process
 os.environ['PYTHONHASHSEED'] = '0'
@@ -18,14 +29,6 @@ np.random.seed(42)
 rn.seed(12345)
 torch.seed()
 
-import sys, shutil, subprocess
-
-from ops import *
-from dataloader import Inference_Dataset, train_dataset
-from frvsr import generator, f_net
-from Teco import FRVSR, TecoGAN, discriminator
-
-import argparse
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--rand_seed', default=1, nargs="?", help='random seed')
@@ -76,7 +79,7 @@ parser.add_argument('--movingFirstFrame', default=True, nargs="?",
                     help='Whether use constant moving first frame randomly.')
 parser.add_argument('--crop_size', default=32, nargs="?", help='The crop size of the training image')
 # Training data settings
-parser.add_argument('--input_video_dir', default="../TrainingDataPath",
+parser.add_argument('--input_video_dir', type=str, default="../TrainingDataPath",
                     help='The directory of the video input data, for training')
 parser.add_argument('--input_video_pre', default='scene', nargs="?",
                     help='The pre of the directory of the video input data')
@@ -117,6 +120,7 @@ parser.add_argument('--Dt_ratio_max', default=1.0, nargs="?", help='The max rati
 parser.add_argument('--Dbalance', default=0.4, nargs="?", help='An adaptive balancing for Discriminators')
 parser.add_argument('--crop_dt', default=0.75, nargs="?", help='factor of dt crop')  # dt input size = crop_size*crop_dt
 parser.add_argument('--D_LAYERLOSS', default=True, nargs="?", help='Whether use layer loss from D')
+
 
 args = parser.parse_args()
 os.environ["CUDA_VISIBLE_DEVICES"] = args.cudaID
@@ -183,15 +187,15 @@ if args.mode == "inference":
 
 elif args.mode == "train":
     dataset = train_dataset(args)
-    dataloader = DataLoader(dataset, batch_size=args.batch_size, shuffle=True)
+    dataloader = DataLoader(dataset, batch_size=args.batch_size, shuffle=True, num_workers=4)
     images, target = next(iter(dataloader))
     print(target.shape)
     print(images.shape)
     generator_F = generator(3, FLAGS=args)
     fnet = f_net()
     discriminator_F = discriminator(FLAGS=args)
-    counter1 = 0
-    counter2 = 0
+    counter1 = 0.
+    counter2 = 0.
     min_gen_loss = np.inf
 
     for e in range(args.max_epoch):

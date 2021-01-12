@@ -66,21 +66,23 @@ class train_dataset(Dataset):
     def __init__(self, FLAGS):
         if FLAGS.input_video_dir == '':
             raise ValueError('Video input directory input_video_dir is not provided')
-        #if not os.path.exists(FLAGS.input_video_dir):
-        #    raise ValueError('Video input directory not found')
+        if not os.path.exists(FLAGS.input_video_dir):
+            raise ValueError('Video input directory not found')
         self.image_list_len = []
         image_set_lists = []
         for dir_i in range(FLAGS.str_dir, FLAGS.end_dir + 1):
             inputDir = os.path.join(FLAGS.input_video_dir, '%s_%04d' % (FLAGS.input_video_pre, dir_i))
             if os.path.exists(inputDir):  # the following names are hard coded: col_high_
                 if not os.path.exists(os.path.join(inputDir, 'col_high_%04d.png' % FLAGS.max_frm)):
-                    print("Skip %s, since foler doesn't contain enough frames!" % inputDir)
+                    print("Skip %s, since folder doesn't contain enough frames!" % inputDir)
                     continue
 
                 image_list = [os.path.join(inputDir, 'col_high_%04d.png' % frame_i)
                               for frame_i in range(FLAGS.max_frm + 1)]
+
                 self.image_list_len.append(os.path.join(inputDir, 'col_high_%04d.png' % frame_i)
                                            for frame_i in range(FLAGS.max_frm + 1))
+
                 for i in range(110):
                     rnn_list = image_list[i:i + 10]
                     image_set_lists.append(rnn_list)
@@ -113,3 +115,6 @@ class train_dataset(Dataset):
         lr_images = torch.cat(lr_images, dim=0)
         return [lr_images.float(), hr_images.float()]
 
+dataset = train_dataset(args)
+dataloader = DataLoader(dataset,batch_size=4)
+lr, hr = next(iter(dataloader))
