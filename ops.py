@@ -38,17 +38,20 @@ def deprocessLr(image):
     return identity(image)
 
 
-def conv2_tran(input_channels, kernel=3, output_channel=64, stride=1, use_bias=True):
-    padding = (kernel - 1) / 2
+def conv2_tran(input_channels, kernel=3, output_channel=64, stride=1, use_bias=True, output_padding=0):
+    padding = int((kernel - 1) / 2)
 
     if use_bias:
-        trans_conv = nn.ConvTranspose2d(input_channels, output_channel, kernel, stride, padding=padding, bias=True)
+        trans_conv = nn.ConvTranspose2d(input_channels, output_channel, kernel, stride, padding=padding, bias=True
+                                        , output_padding=output_padding)
     else:
-        trans_conv = nn.ConvTranspose2d(input_channels, output_channel, kernel, stride, padding=padding, bias=False)
+        trans_conv = nn.ConvTranspose2d(input_channels, output_channel, kernel, stride, padding=padding, bias=False
+                                        , output_padding=output_padding)
+    return trans_conv
 
 
 def conv2(batch_input, kernel=3, output_channels=64, stride=1, use_bias=True):
-    padding = (kernel - 1) / 2
+    padding = int((kernel - 1) / 2)
     if use_bias:
         conv = nn.Conv2d(batch_input, output_channels, kernel, stride, padding=padding, bias=True)
     else:
@@ -87,41 +90,8 @@ def pixelshuffle(inputs, scale=2):
 
 
 def upscale_four(inputs):
-    shape = inputs.shape()
-    b = shape[0]
-    c = shape[1]
-    h = shape[2]
-    w = shape[3]
-
-    p_inputs = torch.cat((inputs, inputs[:, :, -1:, :]), axis=2)
-    p_inputs = torch.cat((p_inputs, p_inputs[:, :, :, -1:]), axis=3)
-
-    hi_res_bin = [
-        [
-            inputs,
-            p_inputs[:, :, :-1, 1:]
-        ],
-        [
-            p_inputs[:, :, 1:, :-1],
-            p_inputs[:, :, 1:, 1:]
-        ]
-
-    ]
-
-    hi_res_array = []
-    for hi in range(4):
-        for wj in range(4):
-            hi_res_array.append(
-                hi_res_bin[0][0] * (1.0 - 0.25 * hi) * (1.0 - 0.25 * wj)
-                + hi_res_bin[0][1] * (1.0 - 0.25 * hi) * (0.25 * wj)
-                + hi_res_bin[1][0] * (0.25 * hi) * (1.0 - 0.25 * wj)
-                + hi_res_bin[1][1] * (0.25 * hi) * (0.25 * wj)
-            )
-    hi_res = torch.stack(hi_res_array, axis=2)
-    hi_res_reshape = torch.reshape(hi_res, (b, c, 4, 4, h, w))
-    hi_res_reshape = torch.transpose(hi_res_reshape, (0, 1, 2, 3, 4, 5))
-    hi_res_reshape = torch.reshape(hi_res_reshape, (b, c, h * 4, w * 4))
-    return hi_res_reshape
+    upsample = nn.Upsample(scale_factor=4, mode="bilinear")
+    return upsample(inputs)
 
 
 def bicubic_four(inputs):

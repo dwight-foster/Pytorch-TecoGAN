@@ -93,13 +93,12 @@ def TecoGAN(r_inputs, r_targets, discriminator_F, fnet, generator_F, FLAGS, Glob
 
     inputimages = FLAGS.RNN_N
     if FLAGS.pingpang:
-        r_inputs_rev_input = r_inputs[:, -2::-1, :, :, :]
+        r_inputs_rev_input = r_inputs[:, -2:-1, :, :, :]
 
-        r_targets_rev_input = r_targets[:, -2::-1, :, :, :]
+        r_targets_rev_input = r_targets[:, -2:-1, :, :, :]
         r_inputs = torch.cat([r_inputs, r_inputs_rev_input], axis=1)
         r_targets = torch.cat([r_targets, r_targets_rev_input], axis=1)
         inputimages = FLAGS.RNN_N * 2 - 1
-
     output_channel = r_targets.shape[2]
     gen_outputs, gen_warppre = [], []
     learning_rate = FLAGS.learning_rate
@@ -111,42 +110,43 @@ def TecoGAN(r_inputs, r_targets, discriminator_F, fnet, generator_F, FLAGS, Glob
         FLAGS.batch_size * (inputimages - 1), 2 * output_channel, FLAGS.crop_size, FLAGS.crop_size))
     gen_flow_lr = fnet(fnet_input)
     gen_flow = upscale_four(gen_flow_lr * 4.)
+
     gen_flow = torch.reshape(gen_flow,
-                             (FLAGS.batch_size, (inputimages - 1), output_channel, FLAGS.crop_size, FLAGS.crop_size))
+                             (FLAGS.batch_size, (inputimages - 1), 2, FLAGS.crop_size*4, FLAGS.crop_size*4))
     input_frames = torch.reshape(Frame_t,
-                                 (FLAGS.batch_size * inputimages - 1, output_channel, FLAGS.crop_size, FLAGS.crop_size))
+                                 (FLAGS.batch_size * (inputimages - 1), output_channel, FLAGS.crop_size, FLAGS.crop_size))
     s_input_warp = F.grid_sample(torch.reshape(Frame_t_pre, (
-        FLAGS.batch_size * (inputimages - 1), output_channel, FLAGS.crop_size, FLAGS.crop_size)), gen_flow_lr)
+        FLAGS.batch_size * (inputimages - 1), output_channel, FLAGS.crop_size, FLAGS.crop_size)), gen_flow_lr.view(36,32,32,2))
 
     input0 = torch.cat(
         (r_inputs[:, 0, :, :, :], torch.zeros(size=(FLAGS.batch_size, 3 * 4 * 4, FLAGS.crop_size, FLAGS.crop_size),
                                               dtype=torch.float32)), dim=1)
-    gen_pre_output = generator_F(input0, output_channel, FLAGS=FLAGS)
+    gen_pre_output = generator_F(input0)
 
     gen_pre_output = gen_pre_output.view(FLAGS.batch_size, 3, FLAGS.crop_size * 4, FLAGS.crop_size * 4)
     gen_outputs.append(gen_pre_output)
 
     for frame_i in range(inputimages - 1):
         cur_flow = gen_flow[:, frame_i, :, :, :]
-        cur_flow = cur_flow.view(FLAGS.batch_size, 2, FLAGS.crop_size * 4, FLAGS.crop_size * 4)
+        cur_flow = cur_flow.view(FLAGS.batch_size,  FLAGS.crop_size * 4, FLAGS.crop_size * 4, 2)
+
         gen_pre_output_warp = F.grid_sample(gen_pre_output, cur_flow)
         gen_warppre.append(gen_pre_output_warp)
-        gen_pre_output_warp = preprocessLr(deprocess(gen_pre_output_warp))
 
+        gen_pre_output_warp = preprocessLr(deprocess(gen_pre_output_warp))
         gen_pre_output_reshape = gen_pre_output_warp.view(FLAGS.batch_size, 3, FLAGS.crop_size, 4, FLAGS.crop_size, 4)
         gen_pre_output_reshape = gen_pre_output_reshape.permute(0, 1, 3, 5, 2, 4)
 
         gen_pre_output_reshape = torch.reshape(gen_pre_output_reshape,
                                                (FLAGS.batch_size, 3 * 4 * 4, FLAGS.crop_size, FLAGS.crop_size))
         inputs = torch.cat((r_inputs[:, frame_i + 1, :, :, :], gen_pre_output_reshape), dim=1)
-
-        gen_output = generator_F(inputs, output_channel, FLAGS=FLAGS)
+        gen_output = generator_F(inputs)
         gen_outputs.append(gen_output)
         gen_pre_output = gen_output
-        gen_pre_ouput = gen_pre_ouput.view(FLAGS.batch_size, 3, FLAGS.crop_size * 4, FLAGS.crop_size * 4)
+        gen_pre_output = gen_pre_output.view(FLAGS.batch_size, 3, FLAGS.crop_size * 4, FLAGS.crop_size * 4)
 
     gen_outputs = torch.stack(gen_outputs, dim=1)
-
+    print(len(gen_warppre))
     gen_outputs = gen_outputs.view(FLAGS.batch_size, inputimages, 3, FLAGS.crop_size * 4, FLAGS.crop_size * 4)
 
     gen_warppre = torch.stack(gen_warppre, dim=1)

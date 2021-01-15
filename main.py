@@ -83,8 +83,8 @@ parser.add_argument('--input_video_dir', type=str, default="../TrainingDataPath"
                     help='The directory of the video input data, for training')
 parser.add_argument('--input_video_pre', default='scene', nargs="?",
                     help='The pre of the directory of the video input data')
-parser.add_argument('--str_dir', default=1000, nargs="?", help='The starting index of the video directory')
-parser.add_argument('--end_dir', default=2000, nargs="?", help='The ending index of the video directory')
+parser.add_argument('--str_dir', default=2000, nargs="?", help='The starting index of the video directory')
+parser.add_argument('--end_dir', default=2400, nargs="?", help='The ending index of the video directory')
 parser.add_argument('--end_dir_val', default=2050, nargs="?",
                     help='The ending index for validation of the video directory')
 parser.add_argument('--max_frm', default=119, nargs="?", help='The ending index of the video directory')
@@ -188,9 +188,7 @@ if args.mode == "inference":
 elif args.mode == "train":
     dataset = train_dataset(args)
     dataloader = DataLoader(dataset, batch_size=args.batch_size, shuffle=True, num_workers=4)
-    images, target = next(iter(dataloader))
-    print(target.shape)
-    print(images.shape)
+
     generator_F = generator(3, FLAGS=args)
     fnet = f_net()
     discriminator_F = discriminator(FLAGS=args)
