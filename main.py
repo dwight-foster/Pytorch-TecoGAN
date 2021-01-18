@@ -14,7 +14,6 @@ from Teco import FRVSR, discriminator
 
 import argparse
 
-
 ''' TF_CPP_MIN_LOG_LEVEL
 0 = all messages are logged (default behavior)
 1 = INFO messages are not printed
@@ -28,7 +27,6 @@ os.environ['PYTHONHASHSEED'] = '0'
 np.random.seed(42)
 rn.seed(12345)
 torch.seed()
-
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--rand_seed', default=1, nargs="?", help='random seed')
@@ -121,7 +119,6 @@ parser.add_argument('--Dbalance', default=0.4, nargs="?", help='An adaptive bala
 parser.add_argument('--crop_dt', default=0.75, nargs="?", help='factor of dt crop')  # dt input size = crop_size*crop_dt
 parser.add_argument('--D_LAYERLOSS', default=True, nargs="?", help='Whether use layer loss from D')
 
-
 args = parser.parse_args()
 os.environ["CUDA_VISIBLE_DEVICES"] = args.cudaID
 
@@ -195,13 +192,51 @@ elif args.mode == "train":
     counter1 = 0.
     counter2 = 0.
     min_gen_loss = np.inf
-
+    tdis_learning_rate = args.learning_rate
+    if not args.Dt_mergeDs:
+        tdis_learning_rate = tdis_learning_rate * 0.3
+    tdiscrim_optimizer = torch.optim.Adam(discriminator_F.parameters(), tdis_learning_rate,
+                                          betas=(args.beta, 0.999),
+                                          eps=args.adameps)
+    gen_optimizer = torch.optim.Adam(generator_F.parameters(), args.learning_rate, betas=(args.beta, 0.999),
+                                     eps=args.adameps)
+    fnet_optimizer = torch.optim.Adam(fnet.parameters(), args.learning_rate, betas=(args.beta, 0.999), eps=args.adameps)
+    GAN_FLAG = True
     for e in range(args.max_epoch):
         d_loss = 0.
         g_loss = 0.
         f_loss = 0.
         for batch_idx, (inputs, targets) in enumerate(dataloader):
             output = FRVSR(inputs, targets, args, discriminator_F, fnet, generator_F, batch_idx, counter1, counter2)
+            output["d_loss"].backward()
+            tdiscrim_optimizer.zero_grad()
+            if (not GAN_FLAG):
+                output["fnet_loss"].backward()
+                fnet_optimizer.zero_grad()
+                fnet_optimizer.step()
+                output["gen_loss"].backward()
+                gen_optimizer.zero_grad()
+                gen_optimizer.step()
+            else:
+
+                if output["tb"] < args.Dbalance:
+                    tdiscrim_optimizer.step()
+                    output["fnet_loss"].backward()
+                    fnet_optimizer.zero_grad()
+                    fnet_optimizer.step()
+                    output["gen_loss"].backward()
+                    gen_optimizer.zero_grad()
+                    gen_optimizer.step()
+                    counter1 += 1
+
+                else:
+                    fnet_loss.backward()
+                    gen_loss.backward()
+                    fnet_optimizer.zero_grad()
+                    gen_optimizer.zero_grad()
+                    fnet_optimizer.step()
+                    gen_optimizer.step()
+                    counter2 += 1
             d_loss = d_loss + ((1 / (batch_idx + 1)) * (output["d_loss"].data - d_loss))
             g_loss = g_loss + ((1 / (batch_idx + 1)) * (output["gen_loss"].data - g_loss))
             f_loss = f_loss + ((1 / (batch_idx + 1)) * (output["fnet_loss"].data - f_loss))
