@@ -86,7 +86,8 @@ class discriminator(nn.Module):
         return net, layer_list
 
 
-def TecoGAN(r_inputs, r_targets, discriminator_F, fnet, generator_F, FLAGS, Global_step, counter1, counter2,
+def TecoGAN(r_inputs, r_targets, discriminator_F, fnet, generator_F, FLAGS, Global_step, counter1, counter2, optimizer_g
+            , optimizer_d, fnet_optimizer,
             GAN_FLAG=True):
     Global_step += 1
 
@@ -329,6 +330,11 @@ def TecoGAN(r_inputs, r_targets, discriminator_F, fnet, generator_F, FLAGS, Glob
 
     if (FLAGS.D_LAYERLOSS):
         gen_loss += sum_layer_loss * dt_ratio
+    optimizer_g.zero_grad()
+    out = generator_F(input0)
+    gen_loss.backward()
+    optimizer_g.step()
+    gen_loss.detach_()
 
     if (GAN_FLAG):
         t_discrim_fake_loss = torch.log(1 - tdiscrim_fake_output + FLAGS.EPS)
@@ -348,7 +354,10 @@ def TecoGAN(r_inputs, r_targets, discriminator_F, fnet, generator_F, FLAGS, Glob
 
         else:
             discrim_loss = t_discrim_loss
-
+        optimizer_d.zero_grad()
+        out = discriminator_F(fake_warp)
+        discrim_loss.backward()
+        optimizer_d.step()
         tb_exp_averager = EMA(0.99)
         init_average = torch.zeros_like(t_balance)
         tb_exp_averager.register("TB_average", init_average)
@@ -361,7 +370,10 @@ def TecoGAN(r_inputs, r_targets, discriminator_F, fnet, generator_F, FLAGS, Glob
         update_list_avg = [tb_exp_averager.forward("Loss_average", _) for _ in update_list]
 
         fnet_loss = FLAGS.warp_scaling * warp_loss + gen_loss
-
+        fnet_optimizer.zero_grad()
+        out = f_net(fnet_input)
+        fnet_loss.backward()
+        fnet_optimizer.step()
         update_list_avg += [tb, dt_ratio]
         update_list_name += ["t_balance", "Dst_ratio"]
 
@@ -387,5 +399,6 @@ def TecoGAN(r_inputs, r_targets, discriminator_F, fnet, generator_F, FLAGS, Glob
     )
 
 
-def FRVSR(r_inputs, r_targets, FLAGS, discriminator_F, fnet, generator_F, step, counter1, counter2):
-    return TecoGAN(r_inputs, r_targets, discriminator_F, fnet, generator_F, FLAGS, step, counter1, counter2)
+def FRVSR(r_inputs, r_targets, FLAGS, discriminator_F, fnet, generator_F, step, counter1, counter2, optimizer_g, optimizer_d, fnet_optimizer):
+
+    return TecoGAN(r_inputs, r_targets, discriminator_F, fnet, generator_F, FLAGS, step, counter1, counter2, optimizer_g, optimizer_d, fnet_optimizer)

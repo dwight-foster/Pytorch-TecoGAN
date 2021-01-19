@@ -207,16 +207,19 @@ elif args.mode == "train":
         g_loss = 0.
         f_loss = 0.
         for batch_idx, (inputs, targets) in enumerate(dataloader):
-            output = FRVSR(inputs, targets, args, discriminator_F, fnet, generator_F, batch_idx, counter1, counter2)
+            output = FRVSR(inputs, targets, args, discriminator_F, fnet, generator_F, batch_idx, counter1, counter2, gen_optimizer, tdiscrim_optimizer, fnet_optimizer)
 
-            output.fnet_loss.backward()
             fnet_optimizer.zero_grad()
             fnet_optimizer.step()
-            output.gen_loss.backward()
+            f_loss = f_loss + ((1 / (batch_idx + 1)) * (output.fnet_loss.data - f_loss))
+
             gen_optimizer.zero_grad()
             gen_optimizer.step()
-            output.d_loss.backward()
+            g_loss = g_loss + ((1 / (batch_idx + 1)) * (output.gen_loss.data - g_loss))
+
             tdiscrim_optimizer.zero_grad()
+            d_loss = d_loss + ((1 / (batch_idx + 1)) * (output.d_loss.data - d_loss))
+
             if (not GAN_FLAG):
                 print("Not training Discriminator")
             else:
@@ -226,9 +229,6 @@ elif args.mode == "train":
                     counter1 += 1
                 else:
                     counter2 += 1
-            d_loss = d_loss + ((1 / (batch_idx + 1)) * (output["d_loss"].data - d_loss))
-            g_loss = g_loss + ((1 / (batch_idx + 1)) * (output["gen_loss"].data - g_loss))
-            f_loss = f_loss + ((1 / (batch_idx + 1)) * (output["fnet_loss"].data - f_loss))
 
         print("Epoch: {}".format(e + 1))
         print("\nGenerator loss is: {} \n Discriminator loss is: {} \n Fnet loss is: {}".format(d_loss, g_loss, f_loss))
