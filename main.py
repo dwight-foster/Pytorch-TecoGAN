@@ -208,34 +208,23 @@ elif args.mode == "train":
         f_loss = 0.
         for batch_idx, (inputs, targets) in enumerate(dataloader):
             output = FRVSR(inputs, targets, args, discriminator_F, fnet, generator_F, batch_idx, counter1, counter2)
-            output["d_loss"].backward()
+
+            output.fnet_loss.backward()
+            fnet_optimizer.zero_grad()
+            fnet_optimizer.step()
+            output.gen_loss.backward()
+            gen_optimizer.zero_grad()
+            gen_optimizer.step()
+            output.d_loss.backward()
             tdiscrim_optimizer.zero_grad()
             if (not GAN_FLAG):
-                output["fnet_loss"].backward()
-                fnet_optimizer.zero_grad()
-                fnet_optimizer.step()
-                output["gen_loss"].backward()
-                gen_optimizer.zero_grad()
-                gen_optimizer.step()
+                print("Not training Discriminator")
             else:
 
-                if output["tb"] < args.Dbalance:
+                if output.tb < args.Dbalance:
                     tdiscrim_optimizer.step()
-                    output["fnet_loss"].backward()
-                    fnet_optimizer.zero_grad()
-                    fnet_optimizer.step()
-                    output["gen_loss"].backward()
-                    gen_optimizer.zero_grad()
-                    gen_optimizer.step()
                     counter1 += 1
-
                 else:
-                    fnet_loss.backward()
-                    gen_loss.backward()
-                    fnet_optimizer.zero_grad()
-                    gen_optimizer.zero_grad()
-                    fnet_optimizer.step()
-                    gen_optimizer.step()
                     counter2 += 1
             d_loss = d_loss + ((1 / (batch_idx + 1)) * (output["d_loss"].data - d_loss))
             g_loss = g_loss + ((1 / (batch_idx + 1)) * (output["gen_loss"].data - g_loss))

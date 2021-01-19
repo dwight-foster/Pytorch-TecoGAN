@@ -354,17 +354,11 @@ def TecoGAN(r_inputs, r_targets, discriminator_F, fnet, generator_F, FLAGS, Glob
         tb_exp_averager.register("TB_average", init_average)
         tb = tb_exp_averager.forward("TB_average", t_balance)
 
-
-
-
-
-
         update_list += [gen_loss]
         update_list_name += ["All_loss_Gen"]
 
         tb_exp_averager.register("Loss_average", init_average)
         update_list_avg = [tb_exp_averager.forward("Loss_average", _) for _ in update_list]
-
 
         fnet_loss = FLAGS.warp_scaling * warp_loss + gen_loss
 
@@ -375,19 +369,15 @@ def TecoGAN(r_inputs, r_targets, discriminator_F, fnet, generator_F, FLAGS, Glob
         update_list_name += ["withD_counter", "w_o_D_counter"]
 
     max_outputs = min(4, FLAGS.batch_size)
-    gif_sum = [gif_summary("LR", r_inputs, max_outputs=max_outputs, fps=3),
-               gif_summary("HR", deprocess(r_targets), max_outputs=max_outputs, fps=3),
-               gif_summary("Generated", deprocess(gen_outputs), max_outputs=max_outputs, fps=3),
-               gif_summary("WarpPreGen", deprocess(gen_warppre), max_outputs=max_outputs, fps=3)]
     Network = collections.namedtuple('Network', 'gen_output, learning_rate, update_list, '
-                                                'update_list_name, update_list_avg, image_summary, global_step, d_loss, gen_loss, fnet_loss ,tb')
+                                                'update_list_name, update_list_avg, global_step, d_loss, gen_loss, '
+                                                'fnet_loss ,tb')
     return Network(
         gen_output=s_gen_output,
         learning_rate=learning_rate,
         update_list=update_list,
         update_list_name=update_list_name,
         update_list_avg=update_list_avg,
-        image_summary=gif_sum,
         global_step=Global_step,
         d_loss=discrim_loss,
         gen_loss=gen_loss,

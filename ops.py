@@ -15,8 +15,8 @@ import numpy as np, cv2 as cv, scipy
 from scipy import signal
 import collections
 import tensorflow as tf
-from tensorflow.python.ops import summary_op_util
-
+from tensorflow.python.distribute import summary_op_util
+from tensorflow.python.ops.summary_op_util import summary_scope
 
 def preprocess(image):
     # Converts image range from [0,1] to [-1,1]
@@ -296,14 +296,14 @@ def py_gif_summary(tag, images, max_outputs, fps):
         raise ValueError("Tensor must have dtype uint8 for gif summary.")
     if images.ndim != 5:
         raise ValueError("Tensor must be 5-D for gif summary.")
-    batch_size, _, height, width, channels = images.shape
+    batch_size, _, channels, height, width = images.shape
     if channels not in (1, 3):
         raise ValueError("Tensors must have 1 or 3 channels for gif summary.")
 
-    summ = tf.Summary()
+    summ = tf.summary
     num_outputs = min(batch_size, max_outputs)
     for i in range(num_outputs):
-        image_summ = tf.Summary.Image()
+        image_summ = tf.summary.image()
         image_summ.height = height
         image_summ.width = width
         image_summ.colorspace = channels  # 1: grayscale, 3: RGB
@@ -351,12 +351,11 @@ def gif_summary(name, tensor, max_outputs, fps, collections=None, family=None):
     # tensor = tf.convert_to_tensor(tensor)
     if summary_op_util.skip_summary():
         return tf.constant("")
-    with summary_op_util.summary_scope(name, family, values=[tensor]) as (tag, scope):
-        val = tf.py_func(
+    with summary_scope(name, family, values=[tensor]) as (tag, scope):
+        val = tf.py_function(
             py_gif_summary,
             [tag, tensor, max_outputs, fps],
             tf.string,
-            stateful=False,
             name=scope)
         summary_op_util.collect(val, collections, [tf.GraphKeys.SUMMARIES])
     return val
