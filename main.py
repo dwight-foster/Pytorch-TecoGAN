@@ -6,7 +6,7 @@ import torch
 from torch.utils.data import Dataset, DataLoader
 from PIL import Image
 import sys, subprocess
-
+import torchvision
 from ops import *
 from dataloader import train_dataset
 from frvsr import generator, f_net
@@ -46,8 +46,12 @@ parser.add_argument('--output_ext', default='jpg', nargs="?", help='The format o
 parser.add_argument('--summary_dir', default="summary", nargs="?", help='The dirctory to output the summary')
 
 # Models
-parser.add_argument('--checkpoint', default=None, nargs="?",
-                    help='If provided, the weight will be restored from the provided checkpoint')
+parser.add_argument('--g_checkpoint', default=None, nargs="?",
+                    help='If provided, the generator will be restored from the provided checkpoint')
+parser.add_argument('--d_checkpoint', default=None, nargs="?",
+                    help='If provided, the discriminator will be restored from the provided checkpoint')
+parser.add_argument('--f_checkpoint', default=None, nargs="?",
+                    help='If provided, the fnet will be restored from the provided checkpoint')
 parser.add_argument('--num_resblock', nargs="?", default=16, help='How many residual blocks are there in the generator')
 # Models for training
 parser.add_argument('--pre_trained_model', nargs="?", default=False,
@@ -186,9 +190,9 @@ elif args.mode == "train":
     dataset = train_dataset(args)
     dataloader = DataLoader(dataset, batch_size=args.batch_size, shuffle=True, num_workers=4)
 
-    generator_F = generator(3, FLAGS=args)
-    fnet = f_net()
-    discriminator_F = discriminator(FLAGS=args)
+    generator_F = generator(3, FLAGS=args).cuda()
+    fnet = f_net().cuda()
+    discriminator_F = discriminator(FLAGS=args).cuda()
     counter1 = 0.
     counter2 = 0.
     min_gen_loss = np.inf
@@ -202,12 +206,28 @@ elif args.mode == "train":
                                      eps=args.adameps)
     fnet_optimizer = torch.optim.Adam(fnet.parameters(), args.learning_rate, betas=(args.beta, 0.999), eps=args.adameps)
     GAN_FLAG = True
-    for e in range(args.max_epoch):
+    if args.pre_trained_model:
+        g_checkpoint = torch.load(args.g_checkpoint)
+        generator_F.load_state_dict(g_checkpoint["model_state_dict"])
+        gen_optimizer.load_state_dict(g_checkpoint["optimizer_state_dict"])
+        current_epoch = g_checkpoint["epoch"]
+        d_checkpoint = torch.load(args.d_checkpoint)
+        discriminator_F.load_state_dict(d_checkpoint["model_state_dict"])
+        tdiscrim_optimizer.load_state_dict(d_checkpoint["optimizer_state_dict"])
+        f_checkpoint = torch.load(args.f_checkpoint)
+        fnet.load_state_dict(f_checkpoint["model_state_dict"])
+        fnet_optimizer.load_state_dict(f_checkpoint["optimizer_state_dict"])
+    else:
+        current_epoch = 0
+
+    for e in range(current_epoch, args.max_epoch):
         d_loss = 0.
         g_loss = 0.
         f_loss = 0.
         for batch_idx, (inputs, targets) in enumerate(dataloader):
-            output = FRVSR(inputs, targets, args, discriminator_F, fnet, generator_F, batch_idx, counter1, counter2, gen_optimizer, tdiscrim_optimizer, fnet_optimizer)
+
+            output = FRVSR(inputs, targets, args, discriminator_F, fnet, generator_F, batch_idx, counter1, counter2,
+                           gen_optimizer, tdiscrim_optimizer, fnet_optimizer)
 
             fnet_optimizer.zero_grad()
             fnet_optimizer.step()
@@ -231,8 +251,28 @@ elif args.mode == "train":
                     counter2 += 1
 
         print("Epoch: {}".format(e + 1))
-        print("\nGenerator loss is: {} \n Discriminator loss is: {} \n Fnet loss is: {}".format(d_loss, g_loss, f_loss))
-        if g_loss < min_gen_loss:
-            print("\nSaving model...")
-            torch.save(generator_F.state_dict(), "generator.pt")
-            torch.save(fnet.state_dict(), "fnet.pt")
+        print("\nGenerator loss is: {} \nDiscriminator loss is: {} \nFnet loss is: {}".format(d_loss, g_loss, f_loss))
+        torchvision.utils.save_image(output.gen_output, fp="Gan_examples.jpg")
+        torchvision.utils.save_image(
+            targets.view(args.batch_size * args.RNN_N, 3, args.crop_size * 4, args.crop_size * 4), fp="real_image.jpg")
+        torchvision.utils.save_image(inputs.view(args.batch_size * args.RNN_N, 3, args.crop_size, args.crop_size),
+                                     fp="original_image.jpg")
+
+        print("\nSaving model...")
+        torch.save({
+                'epoch': e,
+                'model_state_dict': generator_F.state_dict(),
+                'optimizer_state_dict': gen_optimizer.state_dict(),
+                'loss': g_loss,
+        }, "generator.pt")
+        torch.save({
+                'model_state_dict': fnet.state_dict(),
+                'optimizer_state_dict': fnet_optimizer.state_dict(),
+                'loss': f_loss,
+        }, "fnet.pt")
+        torch.save({
+                'model_state_dict': discriminator_F.state_dict(),
+                'optimizer_state_dict': tdiscrim_optimizer.state_dict(),
+                'loss': d_loss,
+        }, "discrim.pt")
+
