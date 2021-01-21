@@ -1,32 +1,16 @@
-import numpy as np
 import os
-import random as rn
-from torchvision import transforms
-import torch
-from torch.utils.data import Dataset, DataLoader
-from PIL import Image
-import sys, subprocess
+import argparse
+import os
+import subprocess
+import sys
+
 import torchvision
-from ops import *
+from torch.utils.data import DataLoader
+
+from Teco import FRVSR, discriminator
 from dataloader import train_dataset
 from frvsr import generator, f_net
-from Teco import FRVSR, discriminator
-
-import argparse
-
-''' TF_CPP_MIN_LOG_LEVEL
-0 = all messages are logged (default behavior)
-1 = INFO messages are not printed
-2 = INFO and WARNING messages are not printed
-3 = INFO, WARNING, and ERROR messages are not printed
-Disable Logs for now '''
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
-
-# fix all randomness, except for multi-treading or GPU process
-os.environ['PYTHONHASHSEED'] = '0'
-np.random.seed(42)
-rn.seed(12345)
-torch.seed()
+from ops import *
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--rand_seed', default=1, nargs="?", help='random seed')
@@ -46,7 +30,7 @@ parser.add_argument('--output_ext', default='jpg', nargs="?", help='The format o
 parser.add_argument('--summary_dir', default="summary", nargs="?", help='The dirctory to output the summary')
 
 # Models
-parser.add_argument('--g_checkpoint', default=None, nargs="?",
+parser.add_argument('--g_checkpoint', default=None,
                     help='If provided, the generator will be restored from the provided checkpoint')
 parser.add_argument('--d_checkpoint', default=None, nargs="?",
                     help='If provided, the discriminator will be restored from the provided checkpoint')
@@ -95,7 +79,7 @@ parser.add_argument('--max_frm', default=119, nargs="?", help='The ending index 
 parser.add_argument('--vgg_scaling', default=-0.002,
                     nargs="?", help='The scaling factor for the VGG perceptual loss, disable with negative value')
 parser.add_argument('--warp_scaling', default=1.0, nargs="?", help='The scaling factor for the warp')
-parser.add_argument('--pingpang', default=False, nargs="?", help='use bi-directional recurrent or not')
+parser.add_argument('--pingpang', default=True, nargs="?", help='use bi-directional recurrent or not')
 parser.add_argument('--pp_scaling', default=1.0, nargs="?",
                     help='factor of pingpang term, only works when pingpang is True')
 # Training parameters
@@ -107,7 +91,7 @@ parser.add_argument('--stair', default=False, nargs="?",
                     help='Whether perform staircase decay. True => decay in discrete interval.')
 parser.add_argument('--beta', default=0.9, nargs="?", help='The beta1 parameter for the Adam optimizer')
 parser.add_argument('--adameps', default=1e-8, nargs="?", help='The eps parameter for the Adam optimizer')
-parser.add_argument('--max_epoch', default=10, nargs="?", help='The max epoch for the training')
+parser.add_argument('--max_epoch', default=1000, nargs="?", help='The max epoch for the training')
 parser.add_argument('--max_iter', default=1000000, nargs="?", help='The max iteration of the training')
 parser.add_argument('--display_freq', default=20, nargs="?", help='The diplay frequency of the training process')
 parser.add_argument('--summary_freq', default=100, nargs="?", help='The frequency of writing summary')
