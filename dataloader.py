@@ -11,14 +11,6 @@ from scipy import signal
 from PIL import Image
 import argparse
 
-parser = argparse.ArgumentParser()
-parser.add_argument("input_video_dir", nargs="?", type=str, default="../TrainingDataPath")
-parser.add_argument("str_dir", nargs="?", type=int, default=2000)
-parser.add_argument("end_dir", nargs="?", type=int, default=2400)
-parser.add_argument("max_frm", nargs="?", default=119)
-parser.add_argument("input_video_pre", nargs="?", default="scene")
-parser.add_argument("crop_size", nargs="?", default=32)
-args = parser.parse_args()
 
 
 class Inference_Dataset(Dataset):
@@ -115,6 +107,3 @@ class train_dataset(Dataset):
         lr_images = torch.cat(lr_images, dim=0)
         return [lr_images.float(), hr_images.float()]
 
-dataset = train_dataset(args)
-dataloader = DataLoader(dataset,batch_size=4)
-lr, hr = next(iter(dataloader))

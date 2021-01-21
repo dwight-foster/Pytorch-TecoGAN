@@ -110,7 +110,6 @@ parser.add_argument('--D_LAYERLOSS', default=True, nargs="?", help='Whether use 
 args = parser.parse_args()
 os.environ["CUDA_VISIBLE_DEVICES"] = args.cudaID
 
-torch.seed()
 if args.output_dir is None:
     raise ValueError("The output directory is needed")
 if not os.path.exists(args.output_dir):
