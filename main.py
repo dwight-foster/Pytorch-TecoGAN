@@ -84,14 +84,14 @@ parser.add_argument('--pp_scaling', default=1.0, nargs="?",
                     help='factor of pingpang term, only works when pingpang is True')
 # Training parameters
 parser.add_argument('--EPS', default=1e-12, nargs="?", help='The eps added to prevent nan')
-parser.add_argument('--learning_rate', default=0.0001, nargs="?", help='The learning rate for the network')
+parser.add_argument('--learning_rate', default=0.0003, nargs="?", help='The learning rate for the network')
 parser.add_argument('--decay_step', default=500000, nargs="?", help='The steps needed to decay the learning rate')
 parser.add_argument('--decay_rate', default=0.5, nargs="?", help='The decay rate of each decay step')
 parser.add_argument('--stair', default=False, nargs="?",
                     help='Whether perform staircase decay. True => decay in discrete interval.')
 parser.add_argument('--beta', default=0.9, nargs="?", help='The beta1 parameter for the Adam optimizer')
 parser.add_argument('--adameps', default=1e-8, nargs="?", help='The eps parameter for the Adam optimizer')
-parser.add_argument('--max_epoch', default=1000, nargs="?", help='The max epoch for the training')
+parser.add_argument('--max_epoch', default=10000, nargs="?", help='The max epoch for the training')
 parser.add_argument('--max_iter', default=1000000, nargs="?", help='The max iteration of the training')
 parser.add_argument('--display_freq', default=20, nargs="?", help='The diplay frequency of the training process')
 parser.add_argument('--summary_freq', default=100, nargs="?", help='The frequency of writing summary')
