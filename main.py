@@ -208,7 +208,8 @@ elif args.mode == "train":
         g_loss = 0.
         f_loss = 0.
         for batch_idx, (inputs, targets) in enumerate(dataloader):
-
+            inputs = inputs.cuda()
+            targets = targets.cuda()
             output = FRVSR(inputs, targets, args, discriminator_F, fnet, generator_F, batch_idx, counter1, counter2,
                            gen_optimizer, tdiscrim_optimizer, fnet_optimizer)
 
