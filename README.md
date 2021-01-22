@@ -1,9 +1,13 @@
 # TecoGAN
 ## This repository contains my pytorch implementation of the TecoGan project for video super resolution.
 The code uses version 1.7.1 of pytorch. The originial code and paper can be found here:
+
 Github: <https://github.com/thunil/TecoGAN>
+
 Video: <https://www.youtube.com/watch?v=pZXFXtfd-Ak>
+
 Preprint: <https://arxiv.org/pdf/1811.09393.pdf>
+
 Supplemental results: <https://ge.in.tum.de/wp-content/uploads/2020/05/ClickMe.html>
 
 ![TecoGAN teaser image](Resources/teaser.jpg)
