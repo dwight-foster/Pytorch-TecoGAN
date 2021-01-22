@@ -31,8 +31,8 @@ Note: evaluation (test case 2) currently requires an Nvidia GPU with `CUDA`.
 ```bash
 # Install PyTorch 1.7.1+,
 pip3 install torch torchvision
-# CUDA
-# Python3
+CUDA
+Python3
 ## This code was tested on Ubuntu but it should work on Windows
 ```
 
@@ -84,6 +84,7 @@ python3 main.py --input_video_dir TrainingDataPath --max_epochs 10
 
 
 ### Acknowledgements for the originial TecoGan project
+```
 @article{tecogan2020,
   title={Learning temporal coherence via self-supervision for GAN-based video generation},
   author={Chu, Mengyu and Xie, You and Mayer, Jonas and Leal-Taix{\'e}, Laura and Thuerey, Nils},
@@ -94,7 +95,7 @@ python3 main.py --input_video_dir TrainingDataPath --max_epochs 10
   year={2020},
   publisher={ACM New York, NY, USA}
 }
-
+```
 ### Reference
 [1] [The Unreasonable Effectiveness of Deep Features as a Perceptual Metric (LPIPS)](https://github.com/richzhang/PerceptualSimilarity)  
 [2] [Photo-Realistic Single Image Super-Resolution Using a Generative Adversarial Network](https://github.com/brade31919/SRGAN-tensorflow.git)  
