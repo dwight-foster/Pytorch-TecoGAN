@@ -7,7 +7,7 @@ import sys
 import torchvision
 from torch.utils.data import DataLoader
 
-from lib.train import FRVSR
+from lib.train import FRVSR_Train
 from lib.dataloader import train_dataset
 from lib.models import generator, f_net, discriminator
 from lib.ops import *
@@ -210,7 +210,7 @@ elif args.mode == "train":
         for batch_idx, (inputs, targets) in enumerate(dataloader):
             inputs = inputs.cuda()
             targets = targets.cuda()
-            output = FRVSR(inputs, targets, args, discriminator_F, fnet, generator_F, batch_idx, counter1, counter2,
+            output = FRVSR_Train(inputs, targets, args, discriminator_F, fnet, generator_F, batch_idx, counter1, counter2,
                            gen_optimizer, tdiscrim_optimizer, fnet_optimizer)
 
             fnet_optimizer.zero_grad()
