@@ -6,7 +6,7 @@ Video: <https://www.youtube.com/watch?v=pZXFXtfd-Ak>
 Preprint: <https://arxiv.org/pdf/1811.09393.pdf>
 Supplemental results: <https://ge.in.tum.de/wp-content/uploads/2020/05/ClickMe.html>
 
-![TecoGAN teaser image](resources/teaser.jpg)
+![TecoGAN teaser image](Resources/teaser.jpg)
 
 ### Additional Generated Outputs
 
@@ -15,11 +15,11 @@ persist over the course of long generated video sequences. E.g., the mesh struct
 the scale patterns of the lizard, and the dots on the back of the spider highlight the capabilities of our method.
 Our spatio-temporal discriminator plays a key role to guide the generator network towards producing coherent detail.
 
-<img src="resources/tecoGAN-lizard.gif" alt="Lizard" width="900"/><br>
+<img src="Resources/tecoGAN-lizard.gif" alt="Lizard" width="900"/><br>
 
-<img src="resources/tecoGAN-armour.gif" alt="Armor" width="900"/><br>
+<img src="Resources/tecoGAN-armour.gif" alt="Armor" width="900"/><br>
 
-<img src="resources/tecoGAN-spider.gif" alt="Spider" width="600" hspace="150"/><br>
+<img src="Resources/tecoGAN-spider.gif" alt="Spider" width="600" hspace="150"/><br>
 
 ### Running the TecoGAN Model
 
