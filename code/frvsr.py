@@ -79,3 +79,50 @@ class generator(nn.Module):
         net = net + bicubic_hi
         net = preprocess(net)
         return net
+    
+    
+def discriminator_block(inputs, output_channel, kernel_size, stride):
+    net = nn.Sequential(conv2(inputs, kernel_size, output_channel, stride, use_bias=False),
+                        batchnorm(output_channel, is_training=True),
+                        lrelu(0.2))
+    return net
+
+
+class discriminator(nn.Module):
+    def __init__(self, FLAGS=None):
+        super(discriminator, self).__init__()
+        if FLAGS is None:
+            raise ValueError("No FLAGS is provided for discriminator")
+
+        self.conv = nn.Sequential(conv2(27, 3, 64, 1), lrelu(0.2))
+
+        # block1
+        self.block1 = discriminator_block(64, 64, 4, 2)
+
+        # block2
+        self.block2 = discriminator_block(64, 64, 4, 2)
+
+        # block3
+        self.block3 = discriminator_block(64, 128, 4, 2)
+
+        # block4
+        self.block4 = discriminator_block(128, 256, 4, 2)
+
+        self.fc = denselayer(16384, 1)
+
+    def forward(self, x):
+        layer_list = []
+        net = self.conv(x)
+        net = self.block1(net)
+        layer_list.append(net)
+        net = self.block2(net)
+        layer_list.append(net)
+        net = self.block3(net)
+        layer_list.append(net)
+        net = self.block4(net)
+        layer_list.append(net)
+        net = net.view(net.shape[0], -1)
+        net = self.fc(net)
+        net = torch.sigmoid(net)
+        return net, layer_list
+
