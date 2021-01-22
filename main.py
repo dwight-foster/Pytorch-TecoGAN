@@ -7,9 +7,9 @@ import sys
 import torchvision
 from torch.utils.data import DataLoader
 
-from lib.Teco import FRVSR, discriminator
+from lib.Teco import FRVSR
 from lib.dataloader import train_dataset
-from lib.frvsr import generator, f_net
+from lib.frvsr import generator, f_net, discriminator
 from lib.ops import *
 
 parser = argparse.ArgumentParser()
