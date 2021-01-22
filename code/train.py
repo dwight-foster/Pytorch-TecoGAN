@@ -1,4 +1,4 @@
-from frvsr import *
+from models import *
 from torchvision.transforms import functional
 import collections
 
@@ -352,7 +352,7 @@ def TecoGAN(r_inputs, r_targets, discriminator_F, fnet, generator_F, FLAGS, Glob
     )
 
 
-def FRVSR(r_inputs, r_targets, FLAGS, discriminator_F, fnet, generator_F, step, counter1, counter2, optimizer_g,
+def FRVSR_Train(r_inputs, r_targets, FLAGS, discriminator_F, fnet, generator_F, step, counter1, counter2, optimizer_g,
           optimizer_d, fnet_optimizer):
     return TecoGAN(r_inputs, r_targets, discriminator_F, fnet, generator_F, FLAGS, step, counter1, counter2,
                    optimizer_g, optimizer_d, fnet_optimizer)
