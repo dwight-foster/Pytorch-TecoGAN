@@ -109,3 +109,4 @@ TUM I15 <https://ge.in.tum.de/> , TUM <https://www.tum.de/>
 
 Thank you to the researchers behind the TecoGan project for sharing your code and work.
 If you have any questions feel free to email me ```DwightF404@gmail.com```
+##I changed the code but cannot test it. It should work but if it doesn't just email me or start an issue. 
