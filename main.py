@@ -7,10 +7,10 @@ import sys
 import torchvision
 from torch.utils.data import DataLoader
 
-from Teco import FRVSR, discriminator
-from dataloader import train_dataset
-from frvsr import generator, f_net
-from ops import *
+from lib.Teco import FRVSR, discriminator
+from lib.dataloader import train_dataset
+from lib.frvsr import generator, f_net
+from lib.ops import *
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--rand_seed', default=1, nargs="?", help='random seed')
