@@ -210,8 +210,7 @@ elif args.mode == "train":
         for batch_idx, (inputs, targets) in enumerate(dataloader):
             inputs = inputs.cuda()
             targets = targets.cuda()
-            output = FRVSR_Train(inputs, targets, args, discriminator_F, fnet, generator_F, batch_idx, counter1, counter2,
-                           gen_optimizer, tdiscrim_optimizer, fnet_optimizer)
+            output = FRVSR_Train(inputs, targets, args, discriminator_F, fnet, generator_F, batch_idx, counter1, counter2)
 
             fnet_optimizer.zero_grad()
             fnet_optimizer.step()
