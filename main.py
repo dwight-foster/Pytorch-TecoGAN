@@ -86,7 +86,7 @@ parser.add_argument('--pp_scaling', default=1.0, nargs="?",
                     help='factor of pingpang term, only works when pingpang is True')
 # Training parameters
 parser.add_argument('--EPS', default=1e-12, nargs="?", help='The eps added to prevent nan')
-parser.add_argument('--learning_rate', default=0.0003, nargs="?", help='The learning rate for the network')
+parser.add_argument('--learning_rate', default=0.0005, nargs="?", help='The learning rate for the network')
 parser.add_argument('--decay_step', default=500000, nargs="?", help='The steps needed to decay the learning rate')
 parser.add_argument('--decay_rate', default=0.5, nargs="?", help='The decay rate of each decay step')
 parser.add_argument('--stair', default=False, nargs="?",
@@ -173,7 +173,7 @@ if args.mode == "inference":
 
 elif args.mode == "train":
     dataset = train_dataset(args)
-    dataloader = DataLoader(dataset, batch_size=args.batch_size, shuffle=True, num_workers=4)
+    dataloader = DataLoader(dataset, batch_size=args.batch_size, shuffle=True, num_workers=8)
 
     generator_F = generator(3, FLAGS=args).cuda()
     fnet = f_net().cuda()
@@ -212,7 +212,7 @@ elif args.mode == "train":
         for batch_idx, (inputs, targets) in enumerate(dataloader):
             inputs = inputs.cuda()
             targets = targets.cuda()
-            output = FRVSR_Train(inputs, targets, args, discriminator_F, fnet, generator_F, batch_idx, counter1, counter2)
+            output = FRVSR_Train(inputs, targets, args, discriminator_F, fnet, generator_F, batch_idx, counter1, counter2, gen_optimizer, tdiscrim_optimizer, fnet_optimizer)
 
             fnet_optimizer.zero_grad()
             fnet_optimizer.step()
