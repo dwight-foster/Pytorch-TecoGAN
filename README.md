@@ -56,7 +56,7 @@ python3 dataprepare.py --help
 # To be on the safe side, if you just want to see what will happen, the following line won't download anything,
 # and will only save information into log file.
 # TrainingDataPath is still important, it the directory where logs are saved: TrainingDataPath/log/logfile_mmddHHMM.txt
-python3 dataPrepare.py --start_id 2000 --duration 120 --disk_path TrainingDataPath --TEST
+python3 dataprepare.py --start_id 2000 --duration 120 --disk_path TrainingDataPath --TEST
 
 # This will create 308 subfolders under TrainingDataPath, each with 120 frames, from 28 online videos.
 # It takes a long time.
