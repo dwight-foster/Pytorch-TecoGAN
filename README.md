@@ -11,7 +11,8 @@ Preprint: <https://arxiv.org/pdf/1811.09393.pdf>
 Supplemental results: <https://ge.in.tum.de/wp-content/uploads/2020/05/ClickMe.html>
 
 ![TecoGAN teaser image](Resources/teaser.jpg)
-
+## Update:
+Sorry I just saw my imports were wrong on the main file. Now everything is fixed so it should work. 
 ### Additional Generated Outputs
 
 Our method generates fine details that 
@@ -51,16 +52,16 @@ The training and validation dataset can be downloaded with the following command
 pip install --user --upgrade youtube-dl
 
 # take a look of the parameters first:
-python3 dataPrepare.py --help
+python3 dataprepare.py --help
 
 # To be on the safe side, if you just want to see what will happen, the following line won't download anything,
 # and will only save information into log file.
 # TrainingDataPath is still important, it the directory where logs are saved: TrainingDataPath/log/logfile_mmddHHMM.txt
-python3 dataPrepare.py --start_id 2000 --duration 120 --disk_path TrainingDataPath --TEST
+python3 dataprepare.py --start_id 2000 --duration 120 --disk_path TrainingDataPath --TEST
 
 # This will create 308 subfolders under TrainingDataPath, each with 120 frames, from 28 online videos.
 # It takes a long time.
-python3 dataPrepare.py --start_id 2000 --duration 120 --REMOVE --disk_path TrainingDataPath
+python3 dataprepare.py --start_id 2000 --duration 120 --REMOVE --disk_path TrainingDataPath
 
 
 ```
