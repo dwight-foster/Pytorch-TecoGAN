@@ -51,7 +51,7 @@ The training and validation dataset can be downloaded with the following command
 pip install --user --upgrade youtube-dl
 
 # take a look of the parameters first:
-python3 dataPrepare.py --help
+python3 dataprepare.py --help
 
 # To be on the safe side, if you just want to see what will happen, the following line won't download anything,
 # and will only save information into log file.
@@ -60,7 +60,7 @@ python3 dataPrepare.py --start_id 2000 --duration 120 --disk_path TrainingDataPa
 
 # This will create 308 subfolders under TrainingDataPath, each with 120 frames, from 28 online videos.
 # It takes a long time.
-python3 dataPrepare.py --start_id 2000 --duration 120 --REMOVE --disk_path TrainingDataPath
+python3 dataprepare.py --start_id 2000 --duration 120 --REMOVE --disk_path TrainingDataPath
 
 
 ```
