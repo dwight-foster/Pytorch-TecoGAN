@@ -1,7 +1,8 @@
 # TecoGAN
 ## This repository contains my pytorch implementation of the TecoGan project for video super resolution.
 The code uses version 1.7.1 of pytorch. The originial code and paper can be found here:
-
+##Update:
+Sorry I just saw my imports were wrong on the main file. Now everything is fixed so it should work. 
 Github: <https://github.com/thunil/TecoGAN>
 
 Video: <https://www.youtube.com/watch?v=pZXFXtfd-Ak>
