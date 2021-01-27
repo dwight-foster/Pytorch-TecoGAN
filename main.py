@@ -4,9 +4,9 @@ import os
 import subprocess
 import sys
 
-
 import torchvision
 from torch.utils.data import DataLoader
+
 sys.path.insert(1, './code')
 
 from train import FRVSR_Train
@@ -212,17 +212,13 @@ elif args.mode == "train":
         for batch_idx, (inputs, targets) in enumerate(dataloader):
             inputs = inputs.cuda()
             targets = targets.cuda()
-            output = FRVSR_Train(inputs, targets, args, discriminator_F, fnet, generator_F, batch_idx, counter1, counter2, gen_optimizer, tdiscrim_optimizer, fnet_optimizer)
+            output = FRVSR_Train(inputs, targets, args, discriminator_F, fnet, generator_F, batch_idx, counter1,
+                                 counter2, gen_optimizer, tdiscrim_optimizer, fnet_optimizer)
 
-            fnet_optimizer.zero_grad()
-            fnet_optimizer.step()
             f_loss = f_loss + ((1 / (batch_idx + 1)) * (output.fnet_loss.data - f_loss))
 
-            gen_optimizer.zero_grad()
-            gen_optimizer.step()
             g_loss = g_loss + ((1 / (batch_idx + 1)) * (output.gen_loss.data - g_loss))
 
-            tdiscrim_optimizer.zero_grad()
             d_loss = d_loss + ((1 / (batch_idx + 1)) * (output.d_loss.data - d_loss))
 
             if (not GAN_FLAG):
@@ -230,7 +226,7 @@ elif args.mode == "train":
             else:
 
                 if output.tb < args.Dbalance:
-                    tdiscrim_optimizer.step()
+
                     counter1 += 1
                 else:
                     counter2 += 1
@@ -245,19 +241,18 @@ elif args.mode == "train":
 
         print("\nSaving model...")
         torch.save({
-                'epoch': e,
-                'model_state_dict': generator_F.state_dict(),
-                'optimizer_state_dict': gen_optimizer.state_dict(),
-                'loss': g_loss,
+            'epoch': e,
+            'model_state_dict': generator_F.state_dict(),
+            'optimizer_state_dict': gen_optimizer.state_dict(),
+            'loss': g_loss,
         }, "generator.pt")
         torch.save({
-                'model_state_dict': fnet.state_dict(),
-                'optimizer_state_dict': fnet_optimizer.state_dict(),
-                'loss': f_loss,
+            'model_state_dict': fnet.state_dict(),
+            'optimizer_state_dict': fnet_optimizer.state_dict(),
+            'loss': f_loss,
         }, "fnet.pt")
         torch.save({
-                'model_state_dict': discriminator_F.state_dict(),
-                'optimizer_state_dict': tdiscrim_optimizer.state_dict(),
-                'loss': d_loss,
+            'model_state_dict': discriminator_F.state_dict(),
+            'optimizer_state_dict': tdiscrim_optimizer.state_dict(),
+            'loss': d_loss,
         }, "discrim.pt")
-
