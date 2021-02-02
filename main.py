@@ -191,9 +191,9 @@ elif args.mode == "train":
                                      eps=args.adameps)
     fnet_optimizer = torch.optim.Adam(fnet.parameters(), args.learning_rate, betas=(args.beta, 0.999), eps=args.adameps)
     GAN_FLAG = True
-    d_scheduler = torch.optim.StepLR(tdiscrim_optimizer, args.decay_step, args.decay_rate)
-    g_scheduler = torch.optim.StepLR(gen_optimizer, args.decay_step, args.decay_rate)
-    f_scheduler = torch.optim.StepLR(fnet_optimizer, args.decay_step, args.decay_rate)
+    d_scheduler = torch.optim.lr_scheduler.StepLR(tdiscrim_optimizer, args.decay_step, args.decay_rate)
+    g_scheduler = torch.optim.lr_scheduler.StepLR(gen_optimizer, args.decay_step, args.decay_rate)
+    f_scheduler = torch.optim.lr_scheduler.StepLR(fnet_optimizer, args.decay_step, args.decay_rate)
     if args.pre_trained_model:
         g_checkpoint = torch.load(args.g_checkpoint)
         generator_F.load_state_dict(g_checkpoint["model_state_dict"])
