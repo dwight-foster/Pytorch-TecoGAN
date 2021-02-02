@@ -86,8 +86,8 @@ parser.add_argument('--pp_scaling', default=1.0, nargs="?",
                     help='factor of pingpang term, only works when pingpang is True')
 # Training parameters
 parser.add_argument('--EPS', default=1e-12, nargs="?", help='The eps added to prevent nan')
-parser.add_argument('--learning_rate', default=0.0005, nargs="?", help='The learning rate for the network')
-parser.add_argument('--decay_step', default=500000, nargs="?", help='The steps needed to decay the learning rate')
+parser.add_argument('--learning_rate', default=0.0001, nargs="?", help='The learning rate for the network')
+parser.add_argument('--decay_step', default=250, nargs="?", help='The steps needed to decay the learning rate')
 parser.add_argument('--decay_rate', default=0.5, nargs="?", help='The decay rate of each decay step')
 parser.add_argument('--stair', default=False, nargs="?",
                     help='Whether perform staircase decay. True => decay in discrete interval.')
@@ -191,6 +191,9 @@ elif args.mode == "train":
                                      eps=args.adameps)
     fnet_optimizer = torch.optim.Adam(fnet.parameters(), args.learning_rate, betas=(args.beta, 0.999), eps=args.adameps)
     GAN_FLAG = True
+    d_scheduler = torch.optim.StepLR(tdiscrim_optimizer, args.decay_step, args.decay_rate)
+    g_scheduler = torch.optim.StepLR(gen_optimizer, args.decay_step, args.decay_rate)
+    f_scheduler = torch.optim.StepLR(fnet_optimizer, args.decay_step, args.decay_rate)
     if args.pre_trained_model:
         g_checkpoint = torch.load(args.g_checkpoint)
         generator_F.load_state_dict(g_checkpoint["model_state_dict"])
@@ -230,7 +233,9 @@ elif args.mode == "train":
                     counter1 += 1
                 else:
                     counter2 += 1
-
+        f_scheduler.step()
+        d_scheduler.step()
+        g_scheduler.step()
         print("Epoch: {}".format(e + 1))
         print("\nGenerator loss is: {} \nDiscriminator loss is: {} \nFnet loss is: {}".format(d_loss, g_loss, f_loss))
         torchvision.utils.save_image(output.gen_output, fp="Gan_examples.jpg")
