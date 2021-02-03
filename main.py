@@ -86,7 +86,7 @@ parser.add_argument('--pp_scaling', default=1.0, nargs="?",
                     help='factor of pingpang term, only works when pingpang is True')
 # Training parameters
 parser.add_argument('--EPS', default=1e-12, nargs="?", help='The eps added to prevent nan')
-parser.add_argument('--learning_rate', default=0.0001, nargs="?", help='The learning rate for the network')
+parser.add_argument('--learning_rate', default=0.0001, type=float , help='The learning rate for the network')
 parser.add_argument('--decay_step', default=250, nargs="?", help='The steps needed to decay the learning rate')
 parser.add_argument('--decay_rate', default=0.5, nargs="?", help='The decay rate of each decay step')
 parser.add_argument('--stair', default=False, nargs="?",
