@@ -235,7 +235,7 @@ def TecoGAN(r_inputs, r_targets, discriminator_F, fnet, generator_F, FLAGS, Glob
     update_list += [content_loss]
     update_list_name += ["l2_content_loss"]
     gen_loss = content_loss
-    fnet_loss = torch.mean(torch.sum(torch.square(diff1_mse.detach()), dim=[3]))
+    fnet_loss = content_loss
 
     diff2_mse = input_frames - s_input_warp
 
