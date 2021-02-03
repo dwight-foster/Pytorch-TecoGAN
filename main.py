@@ -81,7 +81,7 @@ parser.add_argument('--max_frm', default=119, nargs="?", help='The ending index 
 parser.add_argument('--vgg_scaling', default=-0.002,
                     nargs="?", help='The scaling factor for the VGG perceptual loss, disable with negative value')
 parser.add_argument('--warp_scaling', default=1.0, nargs="?", help='The scaling factor for the warp')
-parser.add_argument('--pingpang', default=True, nargs="?", help='use bi-directional recurrent or not')
+parser.add_argument('--pingpang', default=False, type=bool, help='use bi-directional recurrent or not')
 parser.add_argument('--pp_scaling', default=1.0, nargs="?",
                     help='factor of pingpang term, only works when pingpang is True')
 # Training parameters
