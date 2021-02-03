@@ -12,7 +12,7 @@ Supplemental results: <https://ge.in.tum.de/wp-content/uploads/2020/05/ClickMe.h
 
 ![TecoGAN teaser image](Resources/teaser.jpg)
 ## Update:
-Sorry I just saw my imports were wrong on the main file. Now everything is fixed so it should work. 
+I have trained my model for 1500 epochs so far. My results are in the gan_examples.jpg, the input images in original_image.jpg, and native resolution images in real images.
 ### Additional Generated Outputs
 
 Our method generates fine details that 
