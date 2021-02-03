@@ -235,6 +235,7 @@ def TecoGAN(r_inputs, r_targets, discriminator_F, fnet, generator_F, FLAGS, Glob
     update_list += [content_loss]
     update_list_name += ["l2_content_loss"]
     gen_loss = content_loss
+    fnet_loss = torch.mean(torch.sum(torch.square(diff1_mse.detach()), dim=[3]))
 
     diff2_mse = input_frames - s_input_warp
 
@@ -256,6 +257,7 @@ def TecoGAN(r_inputs, r_targets, discriminator_F, fnet, generator_F, FLAGS, Glob
             vgg_loss += scaled_layer_loss
 
         gen_loss += FLAGS.vgg_scaling * vgg_loss
+        fnet_loss += FLAGS.vgg_scaling * vgg_loss.detach()
         vgg_loss_list += [vgg_loss]
 
         update_list += vgg_loss_list
@@ -270,15 +272,18 @@ def TecoGAN(r_inputs, r_targets, discriminator_F, fnet, generator_F, FLAGS, Glob
 
         if FLAGS.pp_scaling > 0:
             gen_loss += pploss.cpu() * FLAGS.pp_scaling
+            fnet_loss += pploss.cpu() * FLAGS.pp_scaling
         update_list += [pploss]
         update_list_name += ["PingPang"]
 
     if (GAN_FLAG):
         t_adversarial_loss = torch.mean(-torch.log(tdiscrim_fake_output.detach() + FLAGS.EPS))
+        d_adversarial_loss = torch.mean(-torch.log(tdiscrim_fake_output + FLAGS.EPS))
         dt_ratio = torch.min(torch.tensor(FLAGS.Dt_ratio_max),
                              FLAGS.Dt_ratio_0 + FLAGS.Dt_ratio_add * torch.tensor(Global_step, dtype=torch.float32))
 
     gen_loss += FLAGS.ratio * t_adversarial_loss.cpu()
+    fnet_loss += FLAGS.ratio * t_adversarial_loss.cpu()
     update_list += [t_adversarial_loss]
     update_list_name += ["t_adversarial_loss"]
 
@@ -294,7 +299,7 @@ def TecoGAN(r_inputs, r_targets, discriminator_F, fnet, generator_F, FLAGS, Glob
         t_discrim_real_loss = torch.log(tdiscrim_real_output + FLAGS.EPS)
 
         t_discrim_loss = torch.mean(-(t_discrim_fake_loss + t_discrim_real_loss))
-        t_balance = torch.mean(t_discrim_real_loss) + t_adversarial_loss.detach()
+        t_balance = torch.mean(t_discrim_real_loss) + d_adversarial_loss
 
         update_list += [t_discrim_loss]
         update_list_name += ["t_discrim_loss"]
@@ -322,7 +327,7 @@ def TecoGAN(r_inputs, r_targets, discriminator_F, fnet, generator_F, FLAGS, Glob
         tb_exp_averager.register("Loss_average", init_average)
         update_list_avg = [tb_exp_averager.forward("Loss_average", _) for _ in update_list]
 
-        fnet_loss = FLAGS.warp_scaling * warp_loss + gen_loss.detach()
+        fnet_loss = FLAGS.warp_scaling * warp_loss + fnet_loss.detach()
         fnet_loss = fnet_loss.cuda()
         fnet_optimizer.zero_grad()
         fnet_loss.backward()
