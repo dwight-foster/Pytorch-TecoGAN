@@ -233,9 +233,9 @@ elif args.mode == "train":
                     counter1 += 1
                 else:
                     counter2 += 1
-        f_scheduler.step(e)
-        d_scheduler.step(e)
-        g_scheduler.step(e)
+        f_scheduler.step()
+        d_scheduler.step()
+        g_scheduler.step()
         print("Epoch: {}".format(e + 1))
         print("\nGenerator loss is: {} \nDiscriminator loss is: {} \nFnet loss is: {}".format(d_loss, g_loss, f_loss))
         torchvision.utils.save_image(output.gen_output, fp="Gan_examples.jpg")
