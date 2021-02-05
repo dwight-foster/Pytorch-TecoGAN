@@ -5,6 +5,7 @@ import subprocess
 import sys
 
 import torchvision
+from torchvision import datasets, transforms
 from torch.utils.data import DataLoader
 
 sys.path.insert(1, './code')
@@ -12,6 +13,7 @@ sys.path.insert(1, './code')
 from train import FRVSR_Train
 from dataloader import train_dataset
 from models import generator, f_net, discriminator
+from tqdm import tqdm
 from ops import *
 
 parser = argparse.ArgumentParser()
@@ -59,6 +61,7 @@ parser.add_argument('--video_queue_batch', default=2, nargs="?", help='shuffle_b
 
 # Training details
 # The data preparing operation
+
 parser.add_argument('--RNN_N', default=10, nargs="?", help='The number of the rnn recurrent length')
 parser.add_argument('--batch_size', default=4, nargs="?", help='Batch size of the input batch')
 parser.add_argument('--flip', default=True, nargs="?", help='Whether random flip data augmentation is applied')
@@ -67,6 +70,7 @@ parser.add_argument('--movingFirstFrame', default=True, nargs="?",
                     help='Whether use constant moving first frame randomly.')
 parser.add_argument('--crop_size', default=32, nargs="?", help='The crop size of the training image')
 # Training data settings
+parser.add_argument("--dataset", default="custom", type=str, help="choose dataset to use")
 parser.add_argument('--input_video_dir', type=str, default="../TrainingDataPath",
                     help='The directory of the video input data, for training')
 parser.add_argument('--input_video_pre', default='scene', nargs="?",
@@ -172,7 +176,13 @@ if args.mode == "inference":
         raise ValueError("The checkpoint file is needed to perform the test")
 
 elif args.mode == "train":
-    dataset = train_dataset(args)
+    if args.dataset == "custom":
+        dataset = train_dataset(args)
+    else:
+        hr_dataset = datasets.UCF101("../UCF101", "../lranotation", frames_per_clip=10, transform=transforms.Compose(
+            [transforms.Resize((args.crop_size * 4, args.crop_size * 4)), transforms.ToTensor()]))
+        lr_dataset = datasets.UCF101("../UCF101", "../hranotation", frames_per_clip=10, transform=transforms.Compose(
+            [transforms.Resize((args.crop_size, args.crop_size)), transforms.ToTensor()]))
     dataloader = DataLoader(dataset, batch_size=args.batch_size, shuffle=True, num_workers=8)
 
     generator_F = generator(3, FLAGS=args).cuda()
@@ -208,7 +218,7 @@ elif args.mode == "train":
     else:
         current_epoch = 0
 
-    for e in range(current_epoch, args.max_epoch):
+    for e in tqdm(range(current_epoch, args.max_epoch)):
         d_loss = 0.
         g_loss = 0.
         f_loss = 0.
