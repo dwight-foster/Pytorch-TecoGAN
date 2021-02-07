@@ -7,6 +7,7 @@ import os
 import argparse
 from converter import Converter
 from tqdm import tqdm
+
 conv = Converter()
 
 parser = argparse.ArgumentParser()
@@ -19,6 +20,8 @@ args = parser.parse_args()
 
 videos = os.listdir(args.VideoDir)
 num_videos = len(videos)
+
+
 def convert():
     for i in tqdm(range(num_videos)):
 
@@ -43,7 +46,9 @@ def convert():
             }})
         for timecode in convert:
             print(f"\rConverting ({timecode:.2f})...")
-#convert()
+
+
+# convert()
 
 for i in tqdm(range(num_videos)):
     if not os.path.isdir(args.VideoDir):
@@ -61,7 +66,7 @@ for i in tqdm(range(num_videos)):
             if not os.path.isdir(folder_path):
                 os.mkdir(folder_path)
             image = images[n]
-            image = torch.reshape(image, (image.shape[2], image.shape[0], image.shape[1]))
+            image = image.permute(2, 0, 1)
             image_path = folder_path + "/" + "col_high_" + str(n).zfill(4) + ".png"
             utils.save_image(image.float(), fp=image_path)
     else:
@@ -70,8 +75,8 @@ for i in tqdm(range(num_videos)):
             if not os.path.isdir(folder_path):
                 os.mkdir(folder_path)
             image = images[n]
-            image = image.view(image.shape[2], image.shape[0], image.shape[1])
+            image = image.permute(2, 0, 1)
             image_path = folder_path + "/" + "col_high_" + str(n).zfill(4) + '.png'
-            utils.save_image(image.type(torch.float32), image_path)
+            utils.save_image(image.float(), image_path)
     if not args.keep_video:
         os.remove(path)
