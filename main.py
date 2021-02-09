@@ -90,7 +90,7 @@ parser.add_argument('--pp_scaling', default=1.0, nargs="?",
                     help='factor of pingpang term, only works when pingpang is True')
 # Training parameters
 parser.add_argument('--EPS', default=1e-12, nargs="?", help='The eps added to prevent nan')
-parser.add_argument('--learning_rate', default=0.0001, type=float , help='The learning rate for the network')
+parser.add_argument('--learning_rate', default=0.0001, type=float, help='The learning rate for the network')
 parser.add_argument('--decay_step', default=250, nargs="?", help='The steps needed to decay the learning rate')
 parser.add_argument('--decay_rate', default=0.8, nargs="?", help='The decay rate of each decay step')
 parser.add_argument('--stair', default=False, nargs="?",
@@ -203,7 +203,7 @@ elif args.mode == "train":
     GAN_FLAG = True
     d_scheduler = torch.optim.lr_scheduler.StepLR(tdiscrim_optimizer, args.decay_step, args.decay_rate)
     g_scheduler = torch.optim.lr_scheduler.StepLR(gen_optimizer, args.decay_step, args.decay_rate)
-    f_scheduler = torch.optim.lr_scheduler. StepLR(fnet_optimizer, args.decay_step, args.decay_rate)
+    f_scheduler = torch.optim.lr_scheduler.StepLR(fnet_optimizer, args.decay_step, args.decay_rate)
     if args.pre_trained_model:
         g_checkpoint = torch.load(args.g_checkpoint)
         generator_F.load_state_dict(g_checkpoint["model_state_dict"])
@@ -248,11 +248,15 @@ elif args.mode == "train":
         g_scheduler.step()
         print("Epoch: {}".format(e + 1))
         print("\nGenerator loss is: {} \nDiscriminator loss is: {} \nFnet loss is: {}".format(d_loss, g_loss, f_loss))
-        torchvision.utils.save_image(output.gen_output, fp="Gan_examples.jpg")
-        torchvision.utils.save_image(
-            targets.view(args.batch_size * args.RNN_N, 3, args.crop_size * 4, args.crop_size * 4), fp="real_image.jpg")
-        torchvision.utils.save_image(inputs.view(args.batch_size * args.RNN_N, 3, args.crop_size, args.crop_size),
-                                     fp="original_image.jpg")
+        torchvision.io.write_video(fps=args.RNN_N / 2,
+                                   video_array=output.gen_output[0][:args.RNN_N].view(args.RNN_N, args.crop_size * 4,
+                                                                                      args.crop_size * 4, 3).cpu(),
+                                   filename="Gan_examples.mp4")
+        torchvision.io.write_video(
+            video_array=targets[0].view(args.RNN_N, args.crop_size * 4, args.crop_size * 4, 3).cpu(),
+            fps=args.RNN_N / 2, filename="real_image.mp4")
+        torchvision.io.write_video(video_array=inputs[0].view(args.RNN_N, args.crop_size, args.crop_size, 3).cpu(),
+                                   filename="original_image.mp4", fps=args.RNN_N / 2)
         for param_group in gen_optimizer.param_groups:
             cur_lr = param_group["lr"]
         print(f"\nLearning rate is: {cur_lr} ")

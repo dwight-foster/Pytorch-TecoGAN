@@ -342,7 +342,7 @@ def TecoGAN(r_inputs, r_targets, discriminator_F, fnet, generator_F, FLAGS, Glob
                                                 'update_list_name, update_list_avg, global_step, d_loss, gen_loss, '
                                                 'fnet_loss ,tb, target')
     return Network(
-        gen_output=s_gen_output,
+        gen_output=gen_outputs,
         learning_rate=learning_rate,
         update_list=update_list,
         update_list_name=update_list_name,
