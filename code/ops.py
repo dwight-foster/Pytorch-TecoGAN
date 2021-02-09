@@ -17,6 +17,8 @@ import collections
 import tensorflow as tf
 from tensorflow.python.distribute import summary_op_util
 from tensorflow.python.ops.summary_op_util import summary_scope
+import imageio
+
 
 def preprocess(image):
     # Converts image range from [0,1] to [-1,1]
@@ -275,60 +277,10 @@ def encode_gif(images, fps):
     return out
 
 
-def py_gif_summary(tag, images, max_outputs, fps):
-    """Outputs a `Summary` protocol buffer with gif animations.
-    Args:
-      tag: Name of the summary.
-      images: A 5-D `uint8` `np.array` of shape `[batch_size, time, height, width,
-        channels]` where `channels` is 1 or 3.
-      max_outputs: Max number of batch elements to generate gifs for.
-      fps: frames per second of the animation
-    Returns:
-      The serialized `Summary` protocol buffer.
-    Raises:
-      ValueError: If `images` is not a 5-D `uint8` array with 1 or 3 channels.
-    """
-    is_bytes = isinstance(tag, bytes)
-    if is_bytes:
-        tag = tag.decode("utf-8")
-    images = np.asarray(images)
-    if images.dtype != np.uint8:
-        raise ValueError("Tensor must have dtype uint8 for gif summary.")
-    if images.ndim != 5:
-        raise ValueError("Tensor must be 5-D for gif summary.")
-    batch_size, _, channels, height, width = images.shape
-    if channels not in (1, 3):
-        raise ValueError("Tensors must have 1 or 3 channels for gif summary.")
+def save_as_gif(tensor, filepath):
 
-    summ = tf.summary
-    num_outputs = min(batch_size, max_outputs)
-    for i in range(num_outputs):
-        image_summ = tf.summary.image()
-        image_summ.height = height
-        image_summ.width = width
-        image_summ.colorspace = channels  # 1: grayscale, 3: RGB
-        try:
-            image_summ.encoded_image_string = encode_gif(images[i], fps)
-        except (IOError, OSError) as e:
-            tf.logging.warning("Unable to encode images to a gif string because either ffmpeg is "
-                               "not installed or ffmpeg returned an error: %s. Falling back to an "
-                               "image summary of the first frame in the sequence.", e)
-            try:
-                from PIL import Image  # pylint: disable=g-import-not-at-top
-                import io  # pylint: disable=g-import-not-at-top
-                with io.BytesIO() as output:
-                    Image.fromarray(images[i][0]).save(output, "PNG")
-                    image_summ.encoded_image_string = output.getvalue()
-            except:
-                tf.logging.warning("Gif summaries requires ffmpeg or PIL to be installed: %s", e)
-                image_summ.encoded_image_string = "".encode('utf-8') if is_bytes else ""
-        if num_outputs == 1:
-            summ_tag = "{}/gif".format(tag)
-        else:
-            summ_tag = "{}/gif/{}".format(tag, i)
-        summ.value.add(tag=summ_tag, image=image_summ)
-    summ_str = summ.SerializeToString()
-    return summ_str
+    images = np.transpose(tensor.numpy(), (0, 2, 3, 1))
+    imageio.mimsave(filepath, images)
 
 
 def gif_summary(name, tensor, max_outputs, fps, collections=None, family=None):

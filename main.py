@@ -42,7 +42,7 @@ parser.add_argument('--f_checkpoint', default=None, nargs="?",
                     help='If provided, the fnet will be restored from the provided checkpoint')
 parser.add_argument('--num_resblock', nargs="?", default=16, help='How many residual blocks are there in the generator')
 # Models for training
-parser.add_argument('--pre_trained_model', nargs="?", default=False,
+parser.add_argument('--pre_trained_model', type=bool, default=False,
                     help='If True, the weight of generator will be loaded as an initial point'
                          'If False, continue the training')
 parser.add_argument('--vgg_ckpt', default=None, nargs="?", help='path to checkpoint file for the vgg19')
@@ -243,20 +243,22 @@ elif args.mode == "train":
                     counter1 += 1
                 else:
                     counter2 += 1
+        save_as_gif(output.gen_output[0][:args.RNN_N].cpu().data, "gan.gif")
+        save_as_gif(targets[0].cpu().data, "real.gif")
+        save_as_gif(inputs[0].cpu().data, "original.gif")
+
         f_scheduler.step()
         d_scheduler.step()
         g_scheduler.step()
         print("Epoch: {}".format(e + 1))
         print("\nGenerator loss is: {} \nDiscriminator loss is: {} \nFnet loss is: {}".format(d_loss, g_loss, f_loss))
-        torchvision.io.write_video(fps=args.RNN_N / 2,
-                                   video_array=output.gen_output[0][:args.RNN_N].view(args.RNN_N, args.crop_size * 4,
-                                                                                      args.crop_size * 4, 3).cpu(),
-                                   filename="Gan_examples.mp4")
-        torchvision.io.write_video(
-            video_array=targets[0].view(args.RNN_N, args.crop_size * 4, args.crop_size * 4, 3).cpu(),
-            fps=args.RNN_N / 2, filename="real_image.mp4")
-        torchvision.io.write_video(video_array=inputs[0].view(args.RNN_N, args.crop_size, args.crop_size, 3).cpu(),
-                                   filename="original_image.mp4", fps=args.RNN_N / 2)
+        torchvision.utils.save_image(
+            output.gen_output.view(args.batch_size * (args.RNN_N *2-1), 3, args.crop_size * 4, args.crop_size * 4),
+            fp="Gan_examples.jpg")
+        torchvision.utils.save_image(
+            targets.view(args.batch_size * args.RNN_N, 3, args.crop_size * 4, args.crop_size * 4), fp="real_image.jpg")
+        torchvision.utils.save_image(inputs.view(args.batch_size * args.RNN_N, 3, args.crop_size, args.crop_size),
+                                     fp="original_image.jpg")
         for param_group in gen_optimizer.param_groups:
             cur_lr = param_group["lr"]
         print(f"\nLearning rate is: {cur_lr} ")
