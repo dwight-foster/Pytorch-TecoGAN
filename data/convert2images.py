@@ -46,17 +46,20 @@ for n in tqdm(range(num_folders)):
         if len(images) == 0:
             print("here")
             continue
+
         elif len(images) < args.numframes:
-            for x in range(len(images)):
-                folder_path = args.OutputDir + "scene_" + str(1000 + z)
-                if not os.path.isdir(folder_path):
-                    os.mkdir(folder_path)
-                image = images[x]
-                if image is None:
-                    pass
-                else:
-                    image_path = folder_path + "/" + "col_high_" + str(x).zfill(4) + ".png"
-                    cv2.imwrite(image_path, image)
+            if args.keepshortvideos:
+                for x in range(len(images)):
+                    folder_path = args.OutputDir + "scene_" + str(1000 + z)
+                    if not os.path.isdir(folder_path):
+                       os.mkdir(folder_path)
+                    image = images[x]
+                    if image is None:
+                        pass
+                    else:
+                        image_path = folder_path + "/" + "col_high_" + str(x).zfill(4) + ".png"
+                        cv2.imwrite(image_path, image)
+                z += 1
         else:
             for x in range(args.numframes):
                 folder_path = args.OutputDir + "scene_" + str(1000 + z)
@@ -68,9 +71,10 @@ for n in tqdm(range(num_folders)):
                     pass
                 else:
                     cv2.imwrite(image_path, image)
+            z += 1
         if not args.keep_video:
             os.remove(path)
-        z+= 1
+
         if z >= args.max_scenes:
             break
     if z >= args.max_scenes: 
