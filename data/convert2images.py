@@ -13,8 +13,9 @@ parser.add_argument("--OutputDir", default="../TrainingDataPath", type=str, help
 parser.add_argument("--keep_video", default=True, type=bool, help="Decides on whether to keep the input video")
 parser.add_argument("--keepshortvideos", default=True, type=bool, help="Keep images from videos under max frames")
 parser.add_argument("--numframes", default=120, type=int, help="Should be one more than max_frm in main.py")
+parser.add_argument("--max_scenes", default=2000, type=int, help="The max number of scenes to save")
 args = parser.parse_args()
-
+z = 0
 folders = os.listdir(args.VideoDir)
 num_folders = len(folders)
 for n in tqdm(range(num_folders)):
@@ -47,23 +48,30 @@ for n in tqdm(range(num_folders)):
             continue
         elif len(images) < args.numframes:
             for x in range(len(images)):
-                folder_path = args.OutputDir + "scene_" + str(1000 + i)
+                folder_path = args.OutputDir + "scene_" + str(1000 + z)
                 if not os.path.isdir(folder_path):
                     os.mkdir(folder_path)
                 image = images[x]
                 if image is None:
-                    continue
-                image_path = folder_path + "/" + "col_high_" + str(x).zfill(4) + ".png"
-                cv2.imwrite(image_path, image)
+                    pass
+                else:
+                    image_path = folder_path + "/" + "col_high_" + str(x).zfill(4) + ".png"
+                    cv2.imwrite(image_path, image)
         else:
             for x in range(args.numframes):
-                folder_path = args.OutputDir + "scene_" + str(1000 + i)
+                folder_path = args.OutputDir + "scene_" + str(1000 + z)
                 if not os.path.isdir(folder_path):
                     os.mkdir(folder_path)
                 image = images[x]
                 image_path = folder_path + "/" + "col_high_" + str(x).zfill(4) + ".png"
                 if image is None:
-                    continue
-                cv2.imwrite(image_path, image)
+                    pass
+                else:
+                    cv2.imwrite(image_path, image)
         if not args.keep_video:
             os.remove(path)
+        z+= 1
+        if z >= args.max_scenes:
+            break
+    if z >= args.max_scenes: 
+        break
