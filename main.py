@@ -9,7 +9,15 @@ from torchvision import datasets, transforms
 from torch.utils.data import DataLoader
 
 sys.path.insert(1, './code')
-
+def str2bool(v):
+    if isinstance(v, bool):
+       return v
+    if v.lower() in ('yes', 'true', 't', 'y', '1'):
+        return True
+    elif v.lower() in ('no', 'false', 'f', 'n', '0'):
+        return False
+    else:
+        raise argparse.ArgumentTypeError('Boolean value expected.')
 from train import FRVSR_Train
 from dataloader import train_dataset
 from models import generator, f_net, discriminator
@@ -42,7 +50,7 @@ parser.add_argument('--f_checkpoint', default=None, nargs="?",
                     help='If provided, the fnet will be restored from the provided checkpoint')
 parser.add_argument('--num_resblock', nargs="?", default=16, help='How many residual blocks are there in the generator')
 # Models for training
-parser.add_argument('--pre_trained_model', type=bool, default=False,
+parser.add_argument('--pre_trained_model', type=str2bool, default=False,
                     help='If True, the weight of generator will be loaded as an initial point'
                          'If False, continue the training')
 parser.add_argument('--vgg_ckpt', default=None, nargs="?", help='path to checkpoint file for the vgg19')

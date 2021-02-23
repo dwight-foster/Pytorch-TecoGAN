@@ -6,12 +6,20 @@ import os
 import argparse
 from tqdm import tqdm
 import cv2
-
+def str2bool(v):
+    if isinstance(v, bool):
+       return v
+    if v.lower() in ('yes', 'true', 't', 'y', '1'):
+        return True
+    elif v.lower() in ('no', 'false', 'f', 'n', '0'):
+        return False
+    else:
+        raise argparse.ArgumentTypeError('Boolean value expected.')
 parser = argparse.ArgumentParser()
 parser.add_argument("--VideoDir", type=str, help="Path to videos")
 parser.add_argument("--OutputDir", default="../TrainingDataPath", type=str, help="Director for output images")
-parser.add_argument("--keep_video", default=True, type=bool, help="Decides on whether to keep the input video")
-parser.add_argument("--keepshortvideos", default=True, type=bool, help="Keep images from videos under max frames")
+parser.add_argument("--keep_video", default=True, type=str2bool, help="Decides on whether to keep the input video")
+parser.add_argument("--keepshortvideos", default=True, type=str2bool,  help="Keep images from videos under max frames")
 parser.add_argument("--numframes", default=120, type=int, help="Should be one more than max_frm in main.py")
 parser.add_argument("--max_scenes", default=2000, type=int, help="The max number of scenes to save")
 args = parser.parse_args()
@@ -48,7 +56,7 @@ for n in tqdm(range(num_folders)):
             continue
 
         elif len(images) < args.numframes:
-            if args.keepshortvideos:
+            if bool(args.keepshortvideos):
                 for x in range(len(images)):
                     folder_path = args.OutputDir + "scene_" + str(1000 + z)
                     if not os.path.isdir(folder_path):
@@ -59,7 +67,10 @@ for n in tqdm(range(num_folders)):
                     else:
                         image_path = folder_path + "/" + "col_high_" + str(x).zfill(4) + ".png"
                         cv2.imwrite(image_path, image)
+
                 z += 1
+            else:
+                continue
         else:
             for x in range(args.numframes):
                 folder_path = args.OutputDir + "scene_" + str(1000 + z)
