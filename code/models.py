@@ -108,6 +108,8 @@ class discriminator(nn.Module):
         # block4
         self.block4 = discriminator_block(128, 256, 4, 2)
 
+        #self.block4 = discriminator_block(256, 128, 4, 2)
+
         self.fc = denselayer(16384, 1)
 
     def forward(self, x):
