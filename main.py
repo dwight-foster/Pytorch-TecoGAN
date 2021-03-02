@@ -9,20 +9,26 @@ from torchvision import datasets, transforms
 from torch.utils.data import DataLoader
 
 sys.path.insert(1, './code')
+
+
 def str2bool(v):
     if isinstance(v, bool):
-       return v
+        return v
     if v.lower() in ('yes', 'true', 't', 'y', '1'):
         return True
     elif v.lower() in ('no', 'false', 'f', 'n', '0'):
         return False
     else:
         raise argparse.ArgumentTypeError('Boolean value expected.')
+
+
 from train import FRVSR_Train
 from dataloader import train_dataset
 from models import generator, f_net, discriminator
 from tqdm import tqdm
 from ops import *
+
+# All arguments. These are the same arguments as in the original TecoGan repo. I might prune them at a later date.
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--rand_seed', default=1, nargs="?", help='random seed')
@@ -78,7 +84,6 @@ parser.add_argument('--movingFirstFrame', default=True, nargs="?",
                     help='Whether use constant moving first frame randomly.')
 parser.add_argument('--crop_size', default=32, nargs="?", help='The crop size of the training image')
 # Training data settings
-parser.add_argument("--dataset", default="custom", type=str, help="choose dataset to use")
 parser.add_argument('--input_video_dir', type=str, default="../TrainingDataPath",
                     help='The directory of the video input data, for training')
 parser.add_argument('--input_video_pre', default='scene', nargs="?",
@@ -124,6 +129,7 @@ parser.add_argument('--D_LAYERLOSS', default=True, nargs="?", help='Whether use 
 args = parser.parse_args()
 os.environ["CUDA_VISIBLE_DEVICES"] = args.cudaID
 
+##Checking to make sure necessary args are filled.
 if args.output_dir is None:
     raise ValueError("The output directory is needed")
 if not os.path.exists(args.output_dir):
@@ -132,67 +138,19 @@ if not os.path.exists(args.output_dir):
 if not os.path.exists(args.summary_dir):
     os.mkdir(args.summary_dir)
 
-
-class Logger(object):
-    def __init__(self):
-        self.terminal = sys.stdout
-        self.log = open(args.summary_dir + "logfile.txt", "a")
-
-    def write(self, message):
-        self.terminal.write(message)
-        self.log.write(message)
-
-    def flush(self):
-        self.log.flush()
-
-
-sys.stdout = Logger()
-
-
-def preexec():  # Don't forward signals.
-    os.setpgrp()
-
-
-def testWhileTrain(args, testno=0):
-    '''
-        this function is called during training, Hard-Coded!!
-        to try the "inference" mode when a new model is saved.
-        The code has to be updated from machine to machine...
-        depending on python, and your training settings
-    '''
-    desstr = os.path.join(args.output_dir, 'train/')  # saving in the ./train/ directory
-    cmd1 = ["python3", "main.py",  # never tested with python2...
-            "--output_dir", desstr,
-            "--summary_dir", desstr,
-            "--mode", "inference",
-            "--num_resblock", "%d" % args.num_resblock,
-            "--checkpoint", os.path.join(args.output_dir, 'model-%d' % testno),
-            "--cudaID", args.cudaID]
-    # a folder for short test
-    cmd1 += ["--input_dir_LR", "./LR/calendar/",  # update the testing sequence
-             "--output_pre", "",  # saving in train folder directly
-             "--output_name", "%09d" % testno,  # name
-             "--input_dir_len", "10", ]
-    print('[testWhileTrain] step %d:' % testno)
-    print(' '.join(cmd1))
-    # ignore signals
-    return subprocess.Popen(cmd1, preexec_fn=preexec)
-
-
+# an inference mode that I will complete soon
 if args.mode == "inference":
     if args.checkpoint is None:
         raise ValueError("The checkpoint file is needed to perform the test")
 
+# My training loop for TecoGan
 elif args.mode == "train":
-    if args.dataset == "custom":
-        dataset = train_dataset(args)
-    else:
-        hr_dataset = datasets.UCF101("../UCF101", "../lranotation", frames_per_clip=10, transform=transforms.Compose(
-            [transforms.Resize((args.crop_size * 4, args.crop_size * 4)), transforms.ToTensor()]))
-        lr_dataset = datasets.UCF101("../UCF101", "../hranotation", frames_per_clip=10, transform=transforms.Compose(
-            [transforms.Resize((args.crop_size, args.crop_size)), transforms.ToTensor()]))
+    # Defining dataset and dataloader
+    dataset = train_dataset(args)
+
     dataloader = DataLoader(dataset, batch_size=args.batch_size, shuffle=True, num_workers=8)
 
+    # Defining the models as well as the optimizers and lr schedulers
     generator_F = generator(3, FLAGS=args).cuda()
     fnet = f_net().cuda()
     discriminator_F = discriminator(FLAGS=args).cuda()
@@ -212,6 +170,7 @@ elif args.mode == "train":
     d_scheduler = torch.optim.lr_scheduler.StepLR(tdiscrim_optimizer, args.decay_step, args.decay_rate)
     g_scheduler = torch.optim.lr_scheduler.StepLR(gen_optimizer, args.decay_step, args.decay_rate)
     f_scheduler = torch.optim.lr_scheduler.StepLR(fnet_optimizer, args.decay_step, args.decay_rate)
+    # Loading pretrained models and optimizers
     if args.pre_trained_model:
         g_checkpoint = torch.load(args.g_checkpoint)
         generator_F.load_state_dict(g_checkpoint["model_state_dict"])
@@ -226,6 +185,7 @@ elif args.mode == "train":
     else:
         current_epoch = 0
 
+    # Starting epoch loop
     for e in tqdm(range(current_epoch, args.max_epoch)):
         d_loss = 0.
         g_loss = 0.
@@ -233,44 +193,41 @@ elif args.mode == "train":
         for batch_idx, (inputs, targets) in enumerate(dataloader):
             inputs = inputs.cuda()
             targets = targets.cuda()
+            # Passing targets and inputs to the train function
             output = FRVSR_Train(inputs, targets, args, discriminator_F, fnet, generator_F, batch_idx, counter1,
                                  counter2, gen_optimizer, tdiscrim_optimizer, fnet_optimizer)
 
+            # Computing epoch losses
             f_loss = f_loss + ((1 / (batch_idx + 1)) * (output.fnet_loss.data - f_loss))
 
             g_loss = g_loss + ((1 / (batch_idx + 1)) * (output.gen_loss.data - g_loss))
 
             d_loss = d_loss + ((1 / (batch_idx + 1)) * (output.d_loss.data - d_loss))
 
-            if (not GAN_FLAG):
-                print("Not training Discriminator")
-            else:
-
-                if output.tb < args.Dbalance:
-
-                    counter1 += 1
-                else:
-                    counter2 += 1
+        # Saving outputs as gifs and images
         save_as_gif(output.gen_output[0][:args.RNN_N].cpu().data, "gan.gif")
         save_as_gif(targets[0].cpu().data, "real.gif")
         save_as_gif(inputs[0].cpu().data, "original.gif")
-
-        f_scheduler.step()
-        d_scheduler.step()
-        g_scheduler.step()
-        print("Epoch: {}".format(e + 1))
-        print("\nGenerator loss is: {} \nDiscriminator loss is: {} \nFnet loss is: {}".format(d_loss, g_loss, f_loss))
         torchvision.utils.save_image(
-            output.gen_output.view(args.batch_size * (args.RNN_N *2-1), 3, args.crop_size * 4, args.crop_size * 4),
+            output.gen_output.view(args.batch_size * (args.RNN_N * 2 - 1), 3, args.crop_size * 4, args.crop_size * 4),
             fp="Gan_examples.jpg")
         torchvision.utils.save_image(
             targets.view(args.batch_size * args.RNN_N, 3, args.crop_size * 4, args.crop_size * 4), fp="real_image.jpg")
         torchvision.utils.save_image(inputs.view(args.batch_size * args.RNN_N, 3, args.crop_size, args.crop_size),
                                      fp="original_image.jpg")
+        # Updating the lr schedulers
+        f_scheduler.step()
+        d_scheduler.step()
+        g_scheduler.step()
+        # Printing out metrics
+        print("Epoch: {}".format(e + 1))
+        print("\nGenerator loss is: {} \nDiscriminator loss is: {} \nFnet loss is: {}".format(d_loss, g_loss, f_loss))
+
         for param_group in gen_optimizer.param_groups:
             cur_lr = param_group["lr"]
         print(f"\nLearning rate is: {cur_lr} ")
         print("\nSaving model...")
+        # Saving the models
         torch.save({
             'epoch': e,
             'model_state_dict': generator_F.state_dict(),

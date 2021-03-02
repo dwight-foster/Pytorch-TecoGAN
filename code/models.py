@@ -1,7 +1,7 @@
 from dataloader import *
 import torch.nn.functional as F
 
-
+# Defining the fnet model for image warping
 def down_block(inputs, output_channel=64, stride=1):
     net = nn.Sequential(conv2(inputs, 3, output_channel, stride, use_bias=True), lrelu(0.2),
                         conv2(output_channel, 3, output_channel, stride, use_bias=True)
@@ -44,7 +44,7 @@ class f_net(nn.Module):
 
         return net
 
-
+# Defining the generator to upscale images
 def residual_block(inputs, output_channel=64, stride=1):
     net = nn.Sequential(conv2(inputs, 3, output_channel, stride, use_bias=True), nn.ReLU(),
                         conv2(output_channel, 3, output_channel, stride, use_bias=False))
@@ -80,7 +80,7 @@ class generator(nn.Module):
         net = preprocess(net)
         return net
     
-    
+# Defining the discriminator for adversarial part
 def discriminator_block(inputs, output_channel, kernel_size, stride):
     net = nn.Sequential(conv2(inputs, kernel_size, output_channel, stride, use_bias=False),
                         batchnorm(output_channel, is_training=True),

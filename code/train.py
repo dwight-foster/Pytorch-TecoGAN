@@ -6,6 +6,7 @@ VGG_MEAN = [123.68, 116.78, 103.94]
 identity = torch.nn.Identity()
 
 
+# Computing EMA
 class EMA(nn.Module):
     def __init__(self, mu):
         super(EMA, self).__init__()
@@ -22,6 +23,7 @@ class EMA(nn.Module):
         return new_average
 
 
+# VGG function for layer outputs
 def VGG19_slim(input, reuse, deep_list=None, norm_flag=True):
     input_img = deprocess(input)
     input_img_ab = input_img * 255.0 - torch.tensor(VGG_MEAN)
@@ -40,12 +42,14 @@ def VGG19_slim(input, reuse, deep_list=None, norm_flag=True):
     return results
 
 
+# Main train function
 def TecoGAN(r_inputs, r_targets, discriminator_F, fnet, generator_F, FLAGS, Global_step, counter1, counter2, optimizer_g
             , optimizer_d, fnet_optimizer,
             GAN_FLAG=True):
     Global_step += 1
 
     inputimages = FLAGS.RNN_N
+    # Getting inputs for Fnet using pingpang loss for forward and reverse videos
     if FLAGS.pingpang:
         r_inputs_rev_input = torch.flip(r_inputs, dims=[1])[:, 1:, :, :, :]
 
@@ -59,12 +63,13 @@ def TecoGAN(r_inputs, r_targets, discriminator_F, fnet, generator_F, FLAGS, Glob
     learning_rate = FLAGS.learning_rate
     Frame_t_pre = r_inputs[:, 0:-1, :, :, :]
     Frame_t = r_inputs[:, 1:, :, :, :]
-
+    # Reshaping the fnet input and passing it to the model
     fnet_input = torch.cat((Frame_t_pre, Frame_t), dim=2)
 
     fnet_input = torch.reshape(fnet_input, (
         FLAGS.batch_size * (inputimages - 1), 2 * output_channel, FLAGS.crop_size, FLAGS.crop_size))
     gen_flow_lr = fnet(fnet_input)
+    # Preparing generator input
     gen_flow = upscale_four(gen_flow_lr * 4.)
 
     gen_flow = torch.reshape(gen_flow,
@@ -79,9 +84,11 @@ def TecoGAN(r_inputs, r_targets, discriminator_F, fnet, generator_F, FLAGS, Glob
     input0 = torch.cat(
         (r_inputs[:, 0, :, :, :], torch.zeros(size=(FLAGS.batch_size, 3 * 4 * 4, FLAGS.crop_size, FLAGS.crop_size),
                                               dtype=torch.float32).cuda()), dim=1)
+    # Passing inputs into model and reshaping output
     gen_pre_output = generator_F(input0.detach())
     gen_pre_output = gen_pre_output.view(FLAGS.batch_size, 3, FLAGS.crop_size * 4, FLAGS.crop_size * 4)
     gen_outputs.append(gen_pre_output)
+    # Getting outputs of generator for each frame
     for frame_i in range(inputimages - 1):
         cur_flow = gen_flow[:, frame_i, :, :, :]
         cur_flow = cur_flow.view(FLAGS.batch_size, FLAGS.crop_size * 4, FLAGS.crop_size * 4, 2)
@@ -100,7 +107,7 @@ def TecoGAN(r_inputs, r_targets, discriminator_F, fnet, generator_F, FLAGS, Glob
         gen_outputs.append(gen_output)
         gen_pre_output = gen_output
         gen_pre_output = gen_pre_output.view(FLAGS.batch_size, 3, FLAGS.crop_size * 4, FLAGS.crop_size * 4)
-
+    # Converting list of gen outputs and reshaping
     gen_outputs = torch.stack(gen_outputs, dim=1)
     gen_outputs = gen_outputs.view(FLAGS.batch_size, inputimages, 3, FLAGS.crop_size * 4, FLAGS.crop_size * 4)
 
@@ -115,6 +122,7 @@ def TecoGAN(r_inputs, r_targets, discriminator_F, fnet, generator_F, FLAGS, Glob
     update_list = []
     update_list_name = []
 
+    # Preparing vgg layers
     if FLAGS.vgg_scaling > 0.0:
         vgg_layer_labels = ['vgg_19/conv2_2', 'vgg_19/conv3_4', 'vgg_19/conv4_4']
         gen_vgg = VGG19_slim(s_gen_output, deep_list=vgg_layer_labels)
@@ -128,6 +136,7 @@ def TecoGAN(r_inputs, r_targets, discriminator_F, fnet, generator_F, FLAGS, Glob
                                   (FLAGS.batch_size * t_size, 3, FLAGS.crop_size * 4, FLAGS.crop_size * 4))
         t_batch = FLAGS.batch_size * t_size // 3
 
+        # Preparing inputs for discriminator
         if not FLAGS.pingpang:
             fnet_input_back = torch.cat((r_inputs[:, 2:t_size:3, :, :, :], r_inputs[:, 1:t_size:3, :, :, :]), dim=1)
             fnet_input_back = torch.reshape(fnet_input_back,
@@ -164,7 +173,7 @@ def TecoGAN(r_inputs, r_targets, discriminator_F, fnet, generator_F, FLAGS, Glob
         if (FLAGS.crop_dt < 1.0):
             real_warp = functional.resized_crop(real_warp, offset_dt, offset_dt, crop_size_dt, crop_size_dt,
                                                 [crop_size_dt, crop_size_dt])
-
+        # Passing real inputs to discriminator
         if (FLAGS.Dt_mergeDs):
             if (FLAGS.crop_dt < 1.0):
                 real_warp = F.pad(real_warp, paddings, "constant")
@@ -179,13 +188,14 @@ def TecoGAN(r_inputs, r_targets, discriminator_F, fnet, generator_F, FLAGS, Glob
         else:
             tdiscrim_real_output = discriminator_F(real_warp.cuda())
 
+        # Reshaping Generator output to pass to Discriminator
         fake_warp0 = F.grid_sample(t_gen_output, T_vel)
 
         fake_warp = torch.reshape(fake_warp0, (t_batch, 9, FLAGS.crop_size * 4, FLAGS.crop_size * 4))
         if (FLAGS.crop_dt < 1.0):
             fake_warp = functional.resized_crop(fake_warp, offset_dt, offset_dt, crop_size_dt, crop_size_dt,
                                                 size=[crop_size_dt, crop_size_dt])
-
+        # Passing generated images to discriminator
         if (FLAGS.Dt_mergeDs):
             if (FLAGS.crop_dt < 1.0):
                 fake_warp = F.pad(fake_warp, paddings, "constant")
@@ -196,6 +206,7 @@ def TecoGAN(r_inputs, r_targets, discriminator_F, fnet, generator_F, FLAGS, Glob
         else:
             tdiscrim_fake_output = discriminator_F(fake_warp.cuda().detach())
 
+        # Computing the layer loss using the VGG network and discriminator outputs
         if (FLAGS.D_LAYERLOSS):
             Fix_Range = 0.02
             Fix_margin = 0.0
@@ -229,6 +240,7 @@ def TecoGAN(r_inputs, r_targets, discriminator_F, fnet, generator_F, FLAGS, Glob
             if Fix_margin > 0.0:
                 update_list += [d_layer_loss]
                 update_list_name += ["D_layer_loss_for_D_sum"]
+    # Computing the generator and fnet losses
     diff1_mse = s_gen_output - s_targets
 
     content_loss = torch.mean(torch.sum(torch.square(diff1_mse), dim=[3]))
@@ -286,7 +298,7 @@ def TecoGAN(r_inputs, r_targets, discriminator_F, fnet, generator_F, FLAGS, Glob
     fnet_loss += FLAGS.ratio * t_adversarial_loss.cpu()
     update_list += [t_adversarial_loss]
     update_list_name += ["t_adversarial_loss"]
-
+    # Computing gradients for Generator and updating weights
     if (FLAGS.D_LAYERLOSS):
         gen_loss += sum_layer_loss.cpu() * dt_ratio
     gen_loss = gen_loss.cuda()
@@ -294,6 +306,7 @@ def TecoGAN(r_inputs, r_targets, discriminator_F, fnet, generator_F, FLAGS, Glob
     gen_loss.backward()
     optimizer_g.step()
 
+    # Computing discriminator loss
     if (GAN_FLAG):
         t_discrim_fake_loss = torch.log(1 - tdiscrim_fake_output + FLAGS.EPS)
         t_discrim_real_loss = torch.log(tdiscrim_real_output + FLAGS.EPS)
@@ -310,6 +323,7 @@ def TecoGAN(r_inputs, r_targets, discriminator_F, fnet, generator_F, FLAGS, Glob
         if (FLAGS.D_LAYERLOSS and Fix_margin > 0.0):
             discrim_loss = t_discrim_loss + d_layer_loss * dt_ratio
 
+        # Computing gradients for Discriminator and updating weights
         else:
             discrim_loss = t_discrim_loss
         discrim_loss = discrim_loss.cuda()
@@ -326,7 +340,7 @@ def TecoGAN(r_inputs, r_targets, discriminator_F, fnet, generator_F, FLAGS, Glob
 
         tb_exp_averager.register("Loss_average", init_average)
         update_list_avg = [tb_exp_averager.forward("Loss_average", _) for _ in update_list]
-
+        # Computing gradients for fnet and updating weights
         fnet_loss = FLAGS.warp_scaling * warp_loss + fnet_loss.detach()
         fnet_loss = fnet_loss.cuda()
         fnet_optimizer.zero_grad()
@@ -338,6 +352,7 @@ def TecoGAN(r_inputs, r_targets, discriminator_F, fnet, generator_F, FLAGS, Glob
         update_list_avg += [counter1, counter2]
         update_list_name += ["withD_counter", "w_o_D_counter"]
     max_outputs = min(4, FLAGS.batch_size)
+    # Returning output tuple
     Network = collections.namedtuple('Network', 'gen_output, learning_rate, update_list, '
                                                 'update_list_name, update_list_avg, global_step, d_loss, gen_loss, '
                                                 'fnet_loss ,tb, target')
@@ -357,7 +372,8 @@ def TecoGAN(r_inputs, r_targets, discriminator_F, fnet, generator_F, FLAGS, Glob
     )
 
 
+# Defining train function
 def FRVSR_Train(r_inputs, r_targets, FLAGS, discriminator_F, fnet, generator_F, step, counter1, counter2, optimizer_g,
-          optimizer_d, fnet_optimizer):
+                optimizer_d, fnet_optimizer):
     return TecoGAN(r_inputs, r_targets, discriminator_F, fnet, generator_F, FLAGS, step, counter1, counter2,
                    optimizer_g, optimizer_d, fnet_optimizer)

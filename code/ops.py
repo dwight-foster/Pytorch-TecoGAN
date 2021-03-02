@@ -22,6 +22,7 @@ from tensorflow.python.ops.summary_op_util import summary_scope
 import imageio
 
 
+# Preprocessing functions
 def preprocess(image):
     # Converts image range from [0,1] to [-1,1]
     return image * 2 - 1
@@ -42,6 +43,7 @@ def deprocessLr(image):
     return identity(image)
 
 
+# CNN layers
 def conv2_tran(input_channels, kernel=3, output_channel=64, stride=1, use_bias=True, output_padding=0):
     padding = int((kernel - 1) / 2)
 
@@ -88,6 +90,8 @@ def denselayer(inputs, output_size):
     return fc
 
 
+# Different processing functions
+
 def pixelshuffle(inputs, scale=2):
     shuffle = nn.PixelShuffel(2)
     return shuffle
@@ -123,6 +127,8 @@ def random_flip(input, decision):
     return torch.where(torch.less(decision, 0.5), f2, f1)
 
 
+# computing the benchmark psnr
+
 def compute_psnr(ref, target):
     ref = ref.float()
     target = target.float()
@@ -135,6 +141,8 @@ def compute_psnr(ref, target):
 
     return psnr
 
+
+# Defining the VGG model for layer loss
 
 class VGG19(nn.Module):
     def __init__(self):
@@ -208,6 +216,8 @@ class VGG19(nn.Module):
         return output, self.end_points
 
 
+# Upsample functions
+
 def gaussian_2dkernel(size=5, sig=1.):
     """
     Returns a 2D Gaussian kernel array with side length size and a sigma of sig
@@ -240,48 +250,17 @@ def torch_data_gaussDownby4(HRdata, sigma=1.5):
     return cur_data
 
 
+# Loading checkpoint
 def load_ckpt(checkpoint, model):
     return model.load_state_dict(torch.load(checkpoint))
 
 
-def encode_gif(images, fps):
-    """Encodes numpy images into gif string.
-    Args:
-      images: A 5-D `uint8` `np.array` (or a list of 4-D images) of shape
-        `[batch_size, time, height, width, channels]` where `channels` is 1 or 3.
-      fps: frames per second of the animation
-    Returns:
-      The encoded gif string.
-    Raises:
-      IOError: If the ffmpeg command returns an error.
-    """
-    from subprocess import Popen, PIPE
-    c, h, w = images[0].shape
-    cmd = ['ffmpeg', '-y',
-           '-f', 'rawvideo',
-           '-vcodec', 'rawvideo',
-           '-r', '%.02f' % fps,
-           '-s', '%dx%d' % (w, h),
-           '-pix_fmt', {1: 'gray', 3: 'rgb24'}[c],
-           '-i', '-',
-           '-filter_complex', '[0:v]split[x][z];[z]palettegen[y];[x][y]paletteuse',
-           '-r', '%.02f' % fps,
-           '-f', 'gif',
-           '-']
-    proc = Popen(cmd, stdin=PIPE, stdout=PIPE, stderr=PIPE)
-    for image in images:
-        proc.stdin.write(image.tostring())
-    out, err = proc.communicate()
-    if proc.returncode:
-        err = '\n'.join([' '.join(cmd), err.decode('utf8')])
-        raise IOError(err)
-    del proc
-    return out
-
+# Functions for saving images and gifs
 
 def save_as_gif(tensor, filepath):
     images = np.transpose(tensor.numpy(), (0, 2, 3, 1))
     imageio.mimsave(filepath, images)
+
 
 def save_img(out_path, img):
     img = np.clip(img * 255.0, 0, 255).astype(np.uint8)
