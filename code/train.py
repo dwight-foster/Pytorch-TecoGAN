@@ -1,5 +1,6 @@
 from models import *
 from torchvision.transforms import functional
+from torch.cuda.amp import GradScaler, autocast
 import collections
 
 VGG_MEAN = [123.68, 116.78, 103.94]
@@ -65,7 +66,6 @@ def TecoGAN(r_inputs, r_targets, discriminator_F, fnet, generator_F, FLAGS, Glob
     Frame_t = r_inputs[:, 1:, :, :, :]
     # Reshaping the fnet input and passing it to the model
     fnet_input = torch.cat((Frame_t_pre, Frame_t), dim=2)
-
     fnet_input = torch.reshape(fnet_input, (
         FLAGS.batch_size * (inputimages - 1), 2 * output_channel, FLAGS.crop_size, FLAGS.crop_size))
     gen_flow_lr = fnet(fnet_input)
@@ -216,7 +216,7 @@ def TecoGAN(r_inputs, r_targets, discriminator_F, fnet, generator_F, FLAGS, Glob
 
             layer_loss_list = []
             layer_n = len(real_layers)
-            layer_norm = [12.0, 14.0, 24.0, 100.0]
+            layer_norm = [12.0, 14.0, 24.0, 48.0, 100.0]
             for layer_i in range(layer_n):
                 real_layer = real_layers[layer_i]
                 false_layer = fake_layers[layer_i]

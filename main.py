@@ -54,7 +54,7 @@ parser.add_argument('--d_checkpoint', default=None, nargs="?",
                     help='If provided, the discriminator will be restored from the provided checkpoint')
 parser.add_argument('--f_checkpoint', default=None, nargs="?",
                     help='If provided, the fnet will be restored from the provided checkpoint')
-parser.add_argument('--num_resblock', nargs="?", default=16, help='How many residual blocks are there in the generator')
+parser.add_argument('--num_resblock', type=int, default=16, help='How many residual blocks are there in the generator')
 # Models for training
 parser.add_argument('--pre_trained_model', type=str2bool, default=False,
                     help='If True, the weight of generator will be loaded as an initial point'
