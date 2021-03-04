@@ -3,7 +3,7 @@ import argparse
 import os
 import subprocess
 import sys
-
+import numpy as np
 import torchvision
 from torchvision import datasets, transforms
 from torch.utils.data import DataLoader
@@ -23,7 +23,7 @@ def str2bool(v):
 
 
 from train import FRVSR_Train
-from dataloader import train_dataset
+from dataloader import train_dataset, inference_dataset
 from models import generator, f_net, discriminator
 from tqdm import tqdm
 from ops import *
@@ -46,6 +46,7 @@ parser.add_argument('--output_pre', default='', nargs="?", help='The name of the
 parser.add_argument('--output_name', default='output', nargs="?", help='The pre name of the outputs')
 parser.add_argument('--output_ext', default='jpg', nargs="?", help='The format of the output when evaluating')
 parser.add_argument('--summary_dir', default="summary", nargs="?", help='The dirctory to output the summary')
+parser.add_argument('--videotype', default=".mp4", type=str, help="Video type for inference output")
 
 # Models
 parser.add_argument('--g_checkpoint', default=None,
@@ -140,9 +141,72 @@ if not os.path.exists(args.summary_dir):
 
 # an inference mode that I will complete soon
 if args.mode == "inference":
-    if args.checkpoint is None:
+    dataset = inference_dataset(FLAGS)
+    loader = DataLoader(dataset, batch_size=1, shuffle=False)
+    if args.g_checkpoint or args.f_checkpoint is None:
         raise ValueError("The checkpoint file is needed to perform the test")
+    generator_F = generator(3, FLAGS=args).cuda()
+    fnet = f_net().cuda()
+    f_checkpoint = torch.load(args.f_checkpoint)
+    fnet.load_state_dict(f_checkpoint["model_state_dict"])
+    g_checkpoint = torch.load(args.g_checkpoint)
+    generator_F.load_state_dict(g_checkpoint["model_state_dict"])
 
+    for batch_idx, r_inputs in enumerate(loader):
+        output_channel = r_inputs.shape[2]
+        inputimages = r_inputs.shape[1]
+        gen_outputs = []
+        gen_warppre = []
+        learning_rate = args.learning_rate
+        Frame_t_pre = r_inputs[:, 0:-1, :, :, :]
+        Frame_t = r_inputs[:, 1:, :, :, :]
+    # Reshaping the fnet input and passing it to the model
+        fnet_input = torch.cat((Frame_t_pre, Frame_t), dim=2)
+        fnet_input = torch.reshape(fnet_input, (
+            args.batch_size * (inputimages - 1), 2 * output_channel, args.crop_size, args.crop_size))
+        gen_flow_lr = fnet(fnet_input)
+    # Preparing generator input
+        gen_flow = upscale_four(gen_flow_lr * 4.)
+
+        gen_flow = torch.reshape(gen_flow,
+                             (args.batch_size, (inputimages - 1), 2, args.crop_size * 4, args.crop_size * 4))
+        input_frames = torch.reshape(Frame_t,
+                                 (args.batch_size * (inputimages - 1), output_channel, args.crop_size,
+                                  args.crop_size))
+        s_input_warp = F.grid_sample(torch.reshape(Frame_t_pre, (
+        args.batch_size * (inputimages - 1), output_channel, args.crop_size, args.crop_size)),
+                                 gen_flow_lr.view(args.batch_size * (inputimages - 1), 32, 32, 2))
+
+        input0 = torch.cat(
+            (r_inputs[:, 0, :, :, :], torch.zeros(size=(args.batch_size, 3 * 4 * 4, args.crop_size, args.crop_size),
+                                              dtype=torch.float32).cuda()), dim=1)
+    # Passing inputs into model and reshaping output
+        gen_pre_output = generator_F(input0.detach())
+        gen_pre_output = gen_pre_output.view(args.batch_size, 3, args.crop_size * 4, args.crop_size * 4)
+        gen_outputs.append(gen_pre_output)
+    # Getting outputs of generator for each frame
+        for frame_i in range(inputimages - 1):
+            cur_flow = gen_flow[:, frame_i, :, :, :]
+            cur_flow = cur_flow.view(args.batch_size, args.crop_size * 4, args.crop_size * 4, 2)
+
+            gen_pre_output_warp = F.grid_sample(gen_pre_output, cur_flow)
+            gen_warppre.append(gen_pre_output_warp)
+
+            gen_pre_output_warp = preprocessLr(deprocess(gen_pre_output_warp))
+            gen_pre_output_reshape = gen_pre_output_warp.view(args.batch_size, 3, args.crop_size, 4, args.crop_size, 4)
+            gen_pre_output_reshape = gen_pre_output_reshape.permute(0, 1, 3, 5, 2, 4)
+
+            gen_pre_output_reshape = torch.reshape(gen_pre_output_reshape,
+                                               (args.batch_size, 3 * 4 * 4, args.crop_size, args.crop_size))
+            inputs = torch.cat((r_inputs[:, frame_i + 1, :, :, :], gen_pre_output_reshape), dim=1)
+            gen_output = generator_F(inputs.detach())
+            gen_outputs.append(gen_output)
+            gen_pre_output = gen_output
+            gen_pre_output = gen_pre_output.view(args.batch_size, 3, args.crop_size * 4, args.crop_size * 4)
+    # Converting list of gen outputs and reshaping
+        gen_outputs = torch.stack(gen_outputs, dim=1)
+        gen_outputs = gen_outputs.view(args.batch_size, inputimages, 3, args.crop_size * 4, args.crop_size * 4)
+        save_as_gif(gen_outputs, f"ouput{batch_idx}.{args.videotype}")
 # My training loop for TecoGan
 elif args.mode == "train":
     # Defining dataset and dataloader
@@ -203,7 +267,8 @@ elif args.mode == "train":
             g_loss = g_loss + ((1 / (batch_idx + 1)) * (output.gen_loss.data - g_loss))
 
             d_loss = d_loss + ((1 / (batch_idx + 1)) * (output.d_loss.data - d_loss))
-
+        idx = np.random.randint(output.gen_output.shape[0])
+        score = compute_psnr(output.gen_output[idx][:args.RNN_N], targets[idx])
         # Saving outputs as gifs and images
         save_as_gif(output.gen_output[0][:args.RNN_N].cpu().data, "gan.gif")
         save_as_gif(targets[0].cpu().data, "real.gif")
@@ -222,7 +287,7 @@ elif args.mode == "train":
         # Printing out metrics
         print("Epoch: {}".format(e + 1))
         print("\nGenerator loss is: {} \nDiscriminator loss is: {} \nFnet loss is: {}".format(d_loss, g_loss, f_loss))
-
+        print(f"\nPSNR score is: {score}")
         for param_group in gen_optimizer.param_groups:
             cur_lr = param_group["lr"]
         print(f"\nLearning rate is: {cur_lr} ")

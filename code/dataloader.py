@@ -12,8 +12,7 @@ from PIL import Image
 import argparse
 
 
-
-class Inference_Dataset(Dataset):
+class inference_dataset(Dataset):
     def __init__(self, FLAGS):
         filedir = FLAGS.input_dir_LR
         self.downSP = False
@@ -38,20 +37,11 @@ class Inference_Dataset(Dataset):
         return len(self.image_list_LR)
 
     def __getitem__(self, idx):
-        def preprocess_test(name):
-            im = cv.imread(name, 3).astype(np.float32)[:, :, ::-1]
-
-            if self.downSP:
-                icol_blur = cv.GaussianBlur(im, (0, 0), sigmaX=1.5)
-                im = icol_blur[::4, ::4, ::]
-            im = im / 255.0  # np.max(im)
-            return im
-
-        image = preprocess_test(self.image_list_LR[idx])
-        if True:  # a hard-coded symmetric padding
-            self.image_list_LR = self.image_list_LR[5:0:-1] + self.image_list_LR
-            image_LR = image[5:0:-1] + image
-        return torch.from_numpy(image_LR).float()
+        path = self.image_list_LR[idx]
+        image = Image.open(path)
+        image = image.crop(FLAGS.crop_size)
+        image = transforms.functional.to_tensor(image)
+        return image
 
 
 class train_dataset(Dataset):
@@ -106,4 +96,3 @@ class train_dataset(Dataset):
         hr_images = torch.cat(hr_images, dim=0)
         lr_images = torch.cat(lr_images, dim=0)
         return [lr_images.float(), hr_images.float()]
-

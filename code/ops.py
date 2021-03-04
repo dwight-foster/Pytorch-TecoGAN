@@ -135,10 +135,9 @@ def compute_psnr(ref, target):
     diff = target - ref
     sqr = torch.multiply(diff, diff)
     err = sqr.sum()
-    v = diff.shape()[0] * diff.shape()[1] * diff.shape()[2] * diff.shape()[3]
-    mse = err / v.float()
-    psnr = 10. * (torch.log(255. * 255. / mse) / torch.log(10.))
-
+    v = diff.shape[0] * diff.shape[1] * diff.shape[2] * diff.shape[3]
+    mse = err / v
+    psnr = 10. * (torch.log(255. * 255. / mse) / torch.log(torch.tensor(10.)))
     return psnr
 
 
