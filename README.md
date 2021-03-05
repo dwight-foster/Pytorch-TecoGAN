@@ -12,7 +12,7 @@ Supplemental results: <https://ge.in.tum.de/wp-content/uploads/2020/05/ClickMe.h
 
 ![TecoGAN teaser image](Resources/teaser.jpg)
 ## Update:
-I have trained my model for 1500 epochs so far. My results are in the gan_examples.jpg, the input images in original_image.jpg, and native resolution images in real images.
+I have trained my model for 400 epochs so far. My results are in the gan_examples.jpg, the input images in original_image.jpg, and native resolution images in real images. The generator model is trained with 20 resnet blocks. So when you run the script you will have to do --num_resblock 20
 ### Additional Generated Outputs
 
 Our method generates fine details that 
