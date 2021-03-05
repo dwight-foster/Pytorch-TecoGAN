@@ -68,8 +68,9 @@ class generator(nn.Module):
         self.conv = nn.Sequential(conv2(51, 3, 64, 1), nn.ReLU())
         self.num = FLAGS.num_resblock
         self.resid = residual_block(64, 64, 1)
-        self.conv_trans = nn.Sequential(conv2_tran(64, 3, 64, stride=2, output_padding=1), nn.ReLU()
-                                        , conv2_tran(64, 3, 64, stride=2, output_padding=1), nn.ReLU())
+        self.conv_trans = nn.Sequential(conv2_tran(64, 3, 128, stride=2, output_padding=1), nn.ReLU()
+                                        , conv2_tran(128, 3, 128, stride=2, output_padding=1), nn.ReLU(),
+                                        conv2(128, 3, 64, 1), nn.ReLU())
         self.output = conv2(64, 3, gen_output_channels, 1)
 
     def forward(self, x):
@@ -80,10 +81,9 @@ class generator(nn.Module):
         net = self.conv_trans(net)
         net = self.output(net)
 
-        low_res_in = x[:, 0:3, :, :]
-        bicubic_hi = bicubic_four(low_res_in)
-        net = net + bicubic_hi
-        net = preprocess(net)
+        #low_res_in = x[:, 0:3, :, :]
+        #bicubic_hi = bicubic_four(low_res_in)
+        net = net #+ bicubic_hi
         return net
 
 
@@ -115,10 +115,15 @@ class discriminator(nn.Module):
         # block4
         self.block4 = discriminator_block(128, 256, 4, 2)
 
-        self.block5 = discriminator_block(256, 128, 4, 2)
+        self.block5 = discriminator_block(256, 256, 4, 2)
 
-        self.resid = residual_block(128, 128, 1)
-
+        self.resid1 = residual_block(256, 256, 1)
+        self.bn1 = batchnorm(256, True)
+        self.resid2 = residual_block(256, 256, 1)
+        self.bn2 = batchnorm(256, True)
+        self.resid3 = residual_block(256, 128, 1)
+        self.bn3 = batchnorm(128, True)
+        self.relu = lrelu(0.2)
         self.fc = denselayer(2048, 1)
 
     def forward(self, x):
@@ -134,7 +139,12 @@ class discriminator(nn.Module):
         layer_list.append(net)
         net = self.block5(net)
         layer_list.append(net)
-        net = self.resid(net) + net
+        net = self.bn1(self.resid1(net) + net)
+        net = self.relu(net)
+        net = self.bn2(self.resid2(net) + net)
+        net = self.relu(net)
+        net = self.bn3(self.resid3(net))
+        net = self.relu(net)
         net = net.view(net.shape[0], -1)
         net = self.fc(net)
         net = torch.sigmoid(net)
