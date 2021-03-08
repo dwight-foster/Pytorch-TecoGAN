@@ -296,15 +296,12 @@ elif args.mode == "train":
             'epoch': e,
             'model_state_dict': generator_F.state_dict(),
             'optimizer_state_dict': gen_optimizer.state_dict(),
-            'loss': g_loss,
         }, "generator.pt")
         torch.save({
             'model_state_dict': fnet.state_dict(),
             'optimizer_state_dict': fnet_optimizer.state_dict(),
-            'loss': f_loss,
         }, "fnet.pt")
         torch.save({
             'model_state_dict': discriminator_F.state_dict(),
             'optimizer_state_dict': tdiscrim_optimizer.state_dict(),
-            'loss': d_loss,
         }, "discrim.pt")
