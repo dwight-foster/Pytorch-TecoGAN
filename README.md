@@ -12,7 +12,10 @@ Supplemental results: <https://ge.in.tum.de/wp-content/uploads/2020/05/ClickMe.h
 
 ![TecoGAN teaser image](Resources/teaser.jpg)
 ## Update:
-I have trained my model for 1500 epochs so far. My results are in the gan_examples.jpg, the input images in original_image.jpg, and native resolution images in real images.
+I have trained my model for 400 epochs so far. My results are in the gan_examples.jpg, the input images in original_image.jpg, and native resolution images in real images. The generator model is trained with 20 resnet blocks. So when you run the script you will have to do --num_resblock 20
+## Edits I have made to improve the model
+First thing I did was I added a few resblocks to the discriminator and increased the size of the fnet model. I also removed the addition of the bilinear upsampled image to the geneator which let it upsample the image by itself and will hopefully increase the final detail. 
+
 ### Additional Generated Outputs
 
 Our method generates fine details that 
