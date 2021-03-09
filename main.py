@@ -158,12 +158,12 @@ if args.mode == "inference":
         gen_outputs = []
         gen_warppre = []
         learning_rate = args.learning_rate
-        Frame_t_pre = r_inputs[:, 0:-1, :, :, :]
+
         Frame_t = r_inputs[:, 1:, :, :, :]
         # Reshaping the fnet input and passing it to the model
-        fnet_input = torch.cat((Frame_t_pre, Frame_t), dim=2)
-        fnet_input = torch.reshape(fnet_input, (
-            args.batch_size * (inputimages - 1), 2 * output_channel, args.crop_size, args.crop_size))
+        fnet_input = torch.reshape(Frame_t_pre, (
+            FLAGS.batch_size * (inputimages - 1), output_channel, FLAGS.crop_size, FLAGS.crop_size))
+
         gen_flow_lr = fnet(fnet_input)
         # Preparing generator input
         gen_flow = upscale_four(gen_flow_lr * 4.)
@@ -173,9 +173,7 @@ if args.mode == "inference":
         input_frames = torch.reshape(Frame_t,
                                      (args.batch_size * (inputimages - 1), output_channel, args.crop_size,
                                       args.crop_size))
-        s_input_warp = F.grid_sample(torch.reshape(Frame_t_pre, (
-            args.batch_size * (inputimages - 1), output_channel, args.crop_size, args.crop_size)),
-                                     gen_flow_lr.view(args.batch_size * (inputimages - 1), 32, 32, 2))
+
 
         input0 = torch.cat(
             (r_inputs[:, 0, :, :, :], torch.zeros(size=(args.batch_size, 3 * 4 * 4, args.crop_size, args.crop_size),
@@ -202,7 +200,7 @@ if args.mode == "inference":
             gen_output = generator_F(inputs.detach())
             gen_outputs.append(gen_output)
             gen_pre_output = gen_output
-            gen_pre_output = gen_pre_output.view(args.batch_size, 3, args.crop_size * 4, args.crop_size * 4)
+
         # Converting list of gen outputs and reshaping
         gen_outputs = torch.stack(gen_outputs, dim=1)
         gen_outputs = gen_outputs.view(args.batch_size, inputimages, 3, args.crop_size * 4, args.crop_size * 4)
@@ -242,8 +240,8 @@ elif args.mode == "train":
         gen_optimizer.load_state_dict(g_checkpoint["optimizer_state_dict"])
         current_epoch = g_checkpoint["epoch"]
         d_checkpoint = torch.load(args.d_checkpoint)
-        discriminator_F.load_state_dict(d_checkpoint["model_state_dict"])
-        tdiscrim_optimizer.load_state_dict(d_checkpoint["optimizer_state_dict"])
+        #discriminator_F.load_state_dict(d_checkpoint["model_state_dict"])
+        #tdiscrim_optimizer.load_state_dict(d_checkpoint["optimizer_state_dict"])
         f_checkpoint = torch.load(args.f_checkpoint)
         fnet.load_state_dict(f_checkpoint["model_state_dict"])
         fnet_optimizer.load_state_dict(f_checkpoint["optimizer_state_dict"])

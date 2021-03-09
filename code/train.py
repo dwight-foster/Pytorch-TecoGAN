@@ -65,9 +65,8 @@ def TecoGAN(r_inputs, r_targets, discriminator_F, fnet, generator_F, FLAGS, Glob
     Frame_t_pre = r_inputs[:, 0:-1, :, :, :]
     Frame_t = r_inputs[:, 1:, :, :, :]
     # Reshaping the fnet input and passing it to the model
-    fnet_input = torch.cat((Frame_t_pre, Frame_t), dim=2)
-    fnet_input = torch.reshape(fnet_input, (
-        FLAGS.batch_size * (inputimages - 1), 2 * output_channel, FLAGS.crop_size, FLAGS.crop_size))
+    fnet_input = torch.reshape(Frame_t_pre, (
+        FLAGS.batch_size * (inputimages - 1), output_channel, FLAGS.crop_size, FLAGS.crop_size))
     gen_flow_lr = fnet(fnet_input)
     # Preparing generator input
     gen_flow = upscale_four(gen_flow_lr * 4.)
