@@ -22,7 +22,7 @@ def up_block(inputs, output_channel=64, stride=1):
 class f_net(nn.Module):
     def __init__(self):
         super(f_net, self).__init__()
-        self.down1 = down_block(6, 32)
+        self.down1 = down_block(3, 32)
         self.down2 = down_block(32, 64)
         self.down3 = down_block(64, 128)
         self.down4 = down_block(128, 256)
