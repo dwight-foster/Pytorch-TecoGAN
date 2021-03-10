@@ -67,7 +67,8 @@ class generator(nn.Module):
 
         self.conv = nn.Sequential(conv2(51, 3, 64, 1), nn.ReLU())
         self.num = FLAGS.num_resblock
-        self.resid = residual_block(64, 64, 1)
+        self.resids = nn.ModuleList([residual_block(64, 64, 1) for i in range(self.num)])
+
         self.conv_trans = nn.Sequential(conv2_tran(64, 3, 128, stride=2, output_padding=1), nn.ReLU()
                                         , conv2_tran(128, 3, 128, stride=2, output_padding=1), nn.ReLU(),
                                         conv2(128, 3, 64, 1), nn.ReLU())
@@ -76,8 +77,8 @@ class generator(nn.Module):
     def forward(self, x):
         net = self.conv(x)
 
-        for i in range(1, self.num + 1, 1):
-            net = self.resid(net) + net
+        for i in range(self.num):
+            net = self.resids[i](net) + net
         net = self.conv_trans(net)
         net = self.output(net)
 
