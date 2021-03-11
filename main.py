@@ -174,7 +174,6 @@ if args.mode == "inference":
                                      (args.batch_size * (inputimages - 1), output_channel, args.crop_size,
                                       args.crop_size))
 
-
         input0 = torch.cat(
             (r_inputs[:, 0, :, :, :], torch.zeros(size=(args.batch_size, 3 * 4 * 4, args.crop_size, args.crop_size),
                                                   dtype=torch.float32).cuda()), dim=1)
@@ -215,7 +214,7 @@ elif args.mode == "train":
 
     # Defining the models as well as the optimizers and lr schedulers
     generator_F = generator(3, FLAGS=args).cuda()
-    fnet = f_net().cuda()
+    #fnet = f_net().cuda()
     discriminator_F = discriminator(FLAGS=args).cuda()
     counter1 = 0.
     counter2 = 0.
@@ -228,11 +227,11 @@ elif args.mode == "train":
                                           eps=args.adameps)
     gen_optimizer = torch.optim.Adam(generator_F.parameters(), args.learning_rate, betas=(args.beta, 0.999),
                                      eps=args.adameps)
-    fnet_optimizer = torch.optim.Adam(fnet.parameters(), args.learning_rate, betas=(args.beta, 0.999), eps=args.adameps)
+    #fnet_optimizer = torch.optim.Adam(fnet.parameters(), args.learning_rate, betas=(args.beta, 0.999), eps=args.adameps)
     GAN_FLAG = True
     d_scheduler = torch.optim.lr_scheduler.StepLR(tdiscrim_optimizer, args.decay_step, args.decay_rate)
     g_scheduler = torch.optim.lr_scheduler.StepLR(gen_optimizer, args.decay_step, args.decay_rate)
-    f_scheduler = torch.optim.lr_scheduler.StepLR(fnet_optimizer, args.decay_step, args.decay_rate)
+    #f_scheduler = torch.optim.lr_scheduler.StepLR(fnet_optimizer, args.decay_step, args.decay_rate)
     # Loading pretrained models and optimizers
     if args.pre_trained_model:
         g_checkpoint = torch.load(args.g_checkpoint)
@@ -242,9 +241,9 @@ elif args.mode == "train":
         d_checkpoint = torch.load(args.d_checkpoint)
         discriminator_F.load_state_dict(d_checkpoint["model_state_dict"])
         tdiscrim_optimizer.load_state_dict(d_checkpoint["optimizer_state_dict"])
-        f_checkpoint = torch.load(args.f_checkpoint)
-        fnet.load_state_dict(f_checkpoint["model_state_dict"])
-        fnet_optimizer.load_state_dict(f_checkpoint["optimizer_state_dict"])
+        #f_checkpoint = torch.load(args.f_checkpoint)
+        #fnet.load_state_dict(f_checkpoint["model_state_dict"])
+        #fnet_optimizer.load_state_dict(f_checkpoint["optimizer_state_dict"])
     else:
         current_epoch = 0
 
@@ -257,11 +256,11 @@ elif args.mode == "train":
             inputs = inputs.cuda()
             targets = targets.cuda()
             # Passing targets and inputs to the train function
-            output = FRVSR_Train(inputs, targets, args, discriminator_F, fnet, generator_F, batch_idx, counter1,
-                                 counter2, gen_optimizer, tdiscrim_optimizer, fnet_optimizer)
+            output = FRVSR_Train(inputs, targets, args, discriminator_F, generator_F, batch_idx, counter1,
+                                 counter2, gen_optimizer, tdiscrim_optimizer)
 
             # Computing epoch losses
-            f_loss = f_loss + ((1 / (batch_idx + 1)) * (output.fnet_loss.data - f_loss))
+            #f_loss = f_loss + ((1 / (batch_idx + 1)) * (output.fnet_loss.data - f_loss))
 
             g_loss = g_loss + ((1 / (batch_idx + 1)) * (output.gen_loss.data - g_loss))
 
@@ -279,12 +278,11 @@ elif args.mode == "train":
         torchvision.utils.save_image(inputs.view(args.batch_size * args.RNN_N, 3, args.crop_size, args.crop_size),
                                      fp="original_image.jpg")
         # Updating the lr schedulers
-        f_scheduler.step()
         d_scheduler.step()
         g_scheduler.step()
         # Printing out metrics
         print("Epoch: {}".format(e + 1))
-        print("\nGenerator loss is: {} \nDiscriminator loss is: {} \nFnet loss is: {}".format(d_loss, g_loss, f_loss))
+        print("\nGenerator loss is: {} \nDiscriminator loss is: {}".format(d_loss, g_loss))
         for param_group in gen_optimizer.param_groups:
             cur_lr = param_group["lr"]
         print(f"\nLearning rate is: {cur_lr} ")
@@ -295,10 +293,7 @@ elif args.mode == "train":
             'model_state_dict': generator_F.state_dict(),
             'optimizer_state_dict': gen_optimizer.state_dict(),
         }, "generator.pt")
-        torch.save({
-            'model_state_dict': fnet.state_dict(),
-            'optimizer_state_dict': fnet_optimizer.state_dict(),
-        }, "fnet.pt")
+
         torch.save({
             'model_state_dict': discriminator_F.state_dict(),
             'optimizer_state_dict': tdiscrim_optimizer.state_dict(),
