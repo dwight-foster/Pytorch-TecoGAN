@@ -7,6 +7,7 @@ import numpy as np
 import torchvision
 from torchvision import datasets, transforms
 from torch.utils.data import DataLoader
+import time
 
 sys.path.insert(1, './code')
 
@@ -141,18 +142,17 @@ if not os.path.exists(args.summary_dir):
 
 # an inference mode that I will complete soon
 if args.mode == "inference":
-    dataset = inference_dataset(FLAGS)
+    dataset = inference_dataset(args)
     loader = DataLoader(dataset, batch_size=1, shuffle=False)
-    if args.g_checkpoint or args.f_checkpoint is None:
+    if args.g_checkpoint is None:
         raise ValueError("The checkpoint file is needed to perform the test")
     generator_F = generator(3, FLAGS=args).cuda()
-    fnet = f_net().cuda()
-    f_checkpoint = torch.load(args.f_checkpoint)
-    fnet.load_state_dict(f_checkpoint["model_state_dict"])
+
     g_checkpoint = torch.load(args.g_checkpoint)
     generator_F.load_state_dict(g_checkpoint["model_state_dict"])
-
+    images = next(iter(loader))
     for batch_idx, r_inputs in enumerate(loader):
+
         output_channel = r_inputs.shape[2]
         inputimages = r_inputs.shape[1]
         gen_outputs = []
@@ -163,47 +163,46 @@ if args.mode == "inference":
         # Reshaping the fnet input and passing it to the model
         fnet_input = torch.reshape(Frame_t_pre, (
             FLAGS.batch_size * (inputimages - 1), output_channel, FLAGS.crop_size, FLAGS.crop_size))
-
-        gen_flow_lr = fnet(fnet_input)
         # Preparing generator input
-        gen_flow = upscale_four(gen_flow_lr * 4.)
+        gen_flow = upscale_four(fnet_input * 4.)
 
-        gen_flow = torch.reshape(gen_flow,
-                                 (args.batch_size, (inputimages - 1), 2, args.crop_size * 4, args.crop_size * 4))
+        gen_flow = torch.reshape(gen_flow[:, 0:2],
+                                 (FLAGS.batch_size, (inputimages - 1), 2, FLAGS.crop_size * 4, FLAGS.crop_size * 4))
         input_frames = torch.reshape(Frame_t,
-                                     (args.batch_size * (inputimages - 1), output_channel, args.crop_size,
-                                      args.crop_size))
+                                     (FLAGS.batch_size * (inputimages - 1), output_channel, FLAGS.crop_size,
+                                      FLAGS.crop_size))
 
         input0 = torch.cat(
-            (r_inputs[:, 0, :, :, :], torch.zeros(size=(args.batch_size, 3 * 4 * 4, args.crop_size, args.crop_size),
+            (r_inputs[:, 0, :, :, :], torch.zeros(size=(FLAGS.batch_size, 3 * 4 * 4, FLAGS.crop_size, FLAGS.crop_size),
                                                   dtype=torch.float32).cuda()), dim=1)
         # Passing inputs into model and reshaping output
         gen_pre_output = generator_F(input0.detach())
-        gen_pre_output = gen_pre_output.view(args.batch_size, 3, args.crop_size * 4, args.crop_size * 4)
+        gen_pre_output = gen_pre_output.view(FLAGS.batch_size, 3, FLAGS.crop_size * 4, FLAGS.crop_size * 4)
         gen_outputs.append(gen_pre_output)
         # Getting outputs of generator for each frame
         for frame_i in range(inputimages - 1):
             cur_flow = gen_flow[:, frame_i, :, :, :]
-            cur_flow = cur_flow.view(args.batch_size, args.crop_size * 4, args.crop_size * 4, 2)
+            cur_flow = cur_flow.view(FLAGS.batch_size, FLAGS.crop_size * 4, FLAGS.crop_size * 4, 2)
 
             gen_pre_output_warp = F.grid_sample(gen_pre_output, cur_flow)
             gen_warppre.append(gen_pre_output_warp)
 
             gen_pre_output_warp = preprocessLr(deprocess(gen_pre_output_warp))
-            gen_pre_output_reshape = gen_pre_output_warp.view(args.batch_size, 3, args.crop_size, 4, args.crop_size, 4)
+            gen_pre_output_reshape = gen_pre_output_warp.view(FLAGS.batch_size, 3, FLAGS.crop_size, 4, FLAGS.crop_size,
+                                                              4)
             gen_pre_output_reshape = gen_pre_output_reshape.permute(0, 1, 3, 5, 2, 4)
 
             gen_pre_output_reshape = torch.reshape(gen_pre_output_reshape,
-                                                   (args.batch_size, 3 * 4 * 4, args.crop_size, args.crop_size))
+                                                   (FLAGS.batch_size, 3 * 4 * 4, FLAGS.crop_size, FLAGS.crop_size))
             inputs = torch.cat((r_inputs[:, frame_i + 1, :, :, :], gen_pre_output_reshape), dim=1)
             gen_output = generator_F(inputs.detach())
             gen_outputs.append(gen_output)
             gen_pre_output = gen_output
-
+            gen_pre_output = gen_pre_output.view(FLAGS.batch_size, 3, FLAGS.crop_size * 4, FLAGS.crop_size * 4)
         # Converting list of gen outputs and reshaping
         gen_outputs = torch.stack(gen_outputs, dim=1)
         gen_outputs = gen_outputs.view(args.batch_size, inputimages, 3, args.crop_size * 4, args.crop_size * 4)
-        save_as_gif(gen_outputs, f"ouput{batch_idx}.{args.videotype}")
+        save_as_gif(gen_outputs, f"./output/ouput{batch_idx}.{args.videotype}")
 # My training loop for TecoGan
 
 elif args.mode == "train":
@@ -214,7 +213,7 @@ elif args.mode == "train":
 
     # Defining the models as well as the optimizers and lr schedulers
     generator_F = generator(3, FLAGS=args).cuda()
-    #fnet = f_net().cuda()
+    # fnet = f_net().cuda()
     discriminator_F = discriminator(FLAGS=args).cuda()
     counter1 = 0.
     counter2 = 0.
@@ -227,11 +226,11 @@ elif args.mode == "train":
                                           eps=args.adameps)
     gen_optimizer = torch.optim.Adam(generator_F.parameters(), args.learning_rate, betas=(args.beta, 0.999),
                                      eps=args.adameps)
-    #fnet_optimizer = torch.optim.Adam(fnet.parameters(), args.learning_rate, betas=(args.beta, 0.999), eps=args.adameps)
+    # fnet_optimizer = torch.optim.Adam(fnet.parameters(), args.learning_rate, betas=(args.beta, 0.999), eps=args.adameps)
     GAN_FLAG = True
     d_scheduler = torch.optim.lr_scheduler.StepLR(tdiscrim_optimizer, args.decay_step, args.decay_rate)
     g_scheduler = torch.optim.lr_scheduler.StepLR(gen_optimizer, args.decay_step, args.decay_rate)
-    #f_scheduler = torch.optim.lr_scheduler.StepLR(fnet_optimizer, args.decay_step, args.decay_rate)
+    # f_scheduler = torch.optim.lr_scheduler.StepLR(fnet_optimizer, args.decay_step, args.decay_rate)
     # Loading pretrained models and optimizers
     if args.pre_trained_model:
         g_checkpoint = torch.load(args.g_checkpoint)
@@ -241,13 +240,14 @@ elif args.mode == "train":
         d_checkpoint = torch.load(args.d_checkpoint)
         discriminator_F.load_state_dict(d_checkpoint["model_state_dict"])
         tdiscrim_optimizer.load_state_dict(d_checkpoint["optimizer_state_dict"])
-        #f_checkpoint = torch.load(args.f_checkpoint)
-        #fnet.load_state_dict(f_checkpoint["model_state_dict"])
-        #fnet_optimizer.load_state_dict(f_checkpoint["optimizer_state_dict"])
+        # f_checkpoint = torch.load(args.f_checkpoint)
+        # fnet.load_state_dict(f_checkpoint["model_state_dict"])
+        # fnet_optimizer.load_state_dict(f_checkpoint["optimizer_state_dict"])
     else:
         current_epoch = 0
 
     # Starting epoch loop
+    since = time.time()
     for e in tqdm(range(current_epoch, args.max_epoch)):
         d_loss = 0.
         g_loss = 0.
@@ -260,7 +260,7 @@ elif args.mode == "train":
                                  counter2, gen_optimizer, tdiscrim_optimizer)
 
             # Computing epoch losses
-            #f_loss = f_loss + ((1 / (batch_idx + 1)) * (output.fnet_loss.data - f_loss))
+            # f_loss = f_loss + ((1 / (batch_idx + 1)) * (output.fnet_loss.data - f_loss))
 
             g_loss = g_loss + ((1 / (batch_idx + 1)) * (output.gen_loss.data - g_loss))
 
@@ -284,8 +284,10 @@ elif args.mode == "train":
         print("Epoch: {}".format(e + 1))
         print("\nGenerator loss is: {} \nDiscriminator loss is: {}".format(d_loss, g_loss))
         for param_group in gen_optimizer.param_groups:
-            cur_lr = param_group["lr"]
-        print(f"\nLearning rate is: {cur_lr} ")
+            gen_lr = param_group["lr"]
+        for param_group in tdiscrim_optimizer.param_groups:
+            disc_lr = param_group["lr"]
+        print(f"\nGenerator lr is: {gen_lr}, Discriminator lr is: {disc_lr}")
         print("\nSaving model...")
         # Saving the models
         torch.save({
@@ -298,3 +300,6 @@ elif args.mode == "train":
             'model_state_dict': discriminator_F.state_dict(),
             'optimizer_state_dict': tdiscrim_optimizer.state_dict(),
         }, "discrim.pt")
+        time_elapsed = time.time() - since
+        print('\nTraining complete in {:.0f}m {:.0f}s'.format(
+            time_elapsed // 60, time_elapsed % 60))
