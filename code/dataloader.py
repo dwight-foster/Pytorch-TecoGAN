@@ -69,8 +69,8 @@ class train_dataset(Dataset):
                     rnn_list = image_list[i:i + 10]
                     image_set_lists.append(rnn_list)
         self.image_set_lists = image_set_lists
-        self.lr_first = transforms.RandomCrop(FLAGS.crop_size)
-        self.hr_first = transforms.RandomCrop(FLAGS.crop_size * 4)
+        self.lr_first = transforms.RandomResizedCrop(FLAGS.crop_size)
+        self.hr_first = transforms.RandomResizedCrop(FLAGS.crop_size * 4)
         self.hr_transforms = transforms.Compose(
             [transforms.Resize((FLAGS.crop_size * 4, FLAGS.crop_size * 4)), transforms.ToTensor()])
         self.lr_transforms = transforms.Compose(
