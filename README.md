@@ -33,9 +33,6 @@ Our spatio-temporal discriminator plays a key role to guide the generator networ
 ### Running the TecoGAN Model
 
 Below you can find a quick start guide for running a trained TecoGAN model.
-For further explanations of the parameters take a look at the runGan.py file.  
-Note: evaluation (test case 2) currently requires an Nvidia GPU with `CUDA`. 
-`tkinter` is also required and may be installed via the `python3-tk` package.
 
 ```bash
 # Install PyTorch 1.7.1+,
@@ -70,13 +67,8 @@ python3 dataprepare.py --start_id 2000 --duration 120 --REMOVE --disk_path Train
 
 ```
 
-Once ready, please update the parameter TrainingDataPath in runGAN.py (for case 3 and case 4), and then you can start training with the downloaded data! 
-
-Note: most of the data (272 out of 308 sequences) are the same as the ones we used for the published models, but some (36 out of 308) are not online anymore. Hence the script downloads suitable replacements.
-
 
 #### 2. Train the Model  
-This section gives command to train a new TecoGAN model. Detail and additional parameters can be found in the runGan.py file. Note: the tensorboard gif summary requires ffmpeg.
 
 ```bash
 
