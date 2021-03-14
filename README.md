@@ -12,10 +12,10 @@ Supplemental results: <https://ge.in.tum.de/wp-content/uploads/2020/05/ClickMe.h
 
 ![TecoGAN teaser image](Resources/teaser.jpg)
 ## Update:
-I have trained my model for 400 epochs so far. My results are in the gan_examples.jpg, the input images in original_image.jpg, and native resolution images in real images. The generator model is trained with 20 resnet blocks. So when you run the script you will have to do --num_resblock 20. Also the inference mode does not currently work. There seems to be a problem with the inference dataset. 
+I have trained my model for 400 epochs so far. My results are in the gan_examples.jpg, the input images in original_image.jpg, and native resolution images in real images. The generator model is trained with 20 resnet blocks. So when you run the script you will have to do --num_resblock 20. Also the inference mode does not currently work. There seems to be a problem with the inference dataset. If you like this repository please consider staring it. I would really appreciate it.
 
 ## Edits I have made to improve the model
-First thing I did was I added a few resblocks to the discriminator and increased the size of the fnet model. I also removed the addition of the bilinear upsampled image to the geneator which let it upsample the image by itself and will hopefully increase the final detail. I removed the fnet model completely now. This led to much higher quality in the images with little to no loss in video continuity. I trained the new models for 1100 epochs and was finally able to break the full detail barrier. Now the gan gif and real gif are much more similar. The gan has finally learned the smaller details like the deep green of the grass and the lines in the netting. If you like this repository please consider staring it. I would appreciate it. Also to train I am using the UCF101 dataset by converting it to photos using the convert2images script to train the model. 
+First thing I did was I added a few resblocks to the discriminator and increased the size of the fnet model. I also removed the addition of the bilinear upsampled image to the geneator which let it upsample the image by itself and will hopefully increase the final detail. I removed the fnet model completely now. This led to much higher quality in the images with little to no loss in video continuity. I trained the new models for 1100 epochs and was finally able to break the full detail barrier. Now the gan gif and real gif are much more similar. The gan has finally learned the smaller details like the deep green of the grass and the lines in the netting. Also to train I am using the UCF101 dataset by converting it to photos using the convert2images script to train the model. 
 
 ### Additional Generated Outputs
 
@@ -33,9 +33,6 @@ Our spatio-temporal discriminator plays a key role to guide the generator networ
 ### Running the TecoGAN Model
 
 Below you can find a quick start guide for running a trained TecoGAN model.
-For further explanations of the parameters take a look at the runGan.py file.  
-Note: evaluation (test case 2) currently requires an Nvidia GPU with `CUDA`. 
-`tkinter` is also required and may be installed via the `python3-tk` package.
 
 ```bash
 # Install PyTorch 1.7.1+,
@@ -70,13 +67,8 @@ python3 dataprepare.py --start_id 2000 --duration 120 --REMOVE --disk_path Train
 
 ```
 
-Once ready, please update the parameter TrainingDataPath in runGAN.py (for case 3 and case 4), and then you can start training with the downloaded data! 
-
-Note: most of the data (272 out of 308 sequences) are the same as the ones we used for the published models, but some (36 out of 308) are not online anymore. Hence the script downloads suitable replacements.
-
 
 #### 2. Train the Model  
-This section gives command to train a new TecoGAN model. Detail and additional parameters can be found in the runGan.py file. Note: the tensorboard gif summary requires ffmpeg.
 
 ```bash
 
