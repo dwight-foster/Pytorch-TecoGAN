@@ -8,6 +8,7 @@ import torchvision
 from torchvision import datasets, transforms
 from torch.utils.data import DataLoader
 import time
+import cv2
 
 sys.path.insert(1, './code')
 
@@ -48,6 +49,8 @@ parser.add_argument('--output_name', default='output', nargs="?", help='The pre 
 parser.add_argument('--output_ext', default='jpg', nargs="?", help='The format of the output when evaluating')
 parser.add_argument('--summary_dir', default="summary", nargs="?", help='The dirctory to output the summary')
 parser.add_argument('--videotype', default=".mp4", type=str, help="Video type for inference output")
+parser.add_argument('--inferencetype', default="dataset", type=str, help="The type of input to the inference loop. "
+                                                                         "Either video or dataset folder.")
 
 # Models
 parser.add_argument('--g_checkpoint', default=None,
@@ -142,15 +145,31 @@ if not os.path.exists(args.summary_dir):
 
 # an inference mode that I will complete soon
 if args.mode == "inference":
-    dataset = inference_dataset(args)
-    loader = DataLoader(dataset, batch_size=1, shuffle=False)
+    if args.inferencetype == "dataset":
+        dataset = inference_dataset(args)
+        loader = DataLoader(dataset, batch_size=1, shuffle=False)
+    elif args.inferencetype == "video":
+        cap = cv2.VideoCapture("./output/ouput0..mp4")
+        frames = []
+
+        for k in range(int(cap.get(cv2.CAP_PROP_FRAME_COUNT))):
+            # Capture frame-by-frame
+            ret, frame = cap.read()
+            # Our operations on the frame come here
+            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+
+            next_img = torchvision.transforms.functional.to_tensor(frame)
+            next_img = torchvision.transforms.functional.resize(next_img, size=(args.crop_size, args.crop_size))
+            frames.append(next_img)
+        cap.release()
+        loader = torch.stack(frames, dim=0).unsqueeze(0).cuda().unsqueeze(0)
+
     if args.g_checkpoint is None:
         raise ValueError("The checkpoint file is needed to perform the test")
     generator_F = generator(3, FLAGS=args).cuda()
 
     g_checkpoint = torch.load(args.g_checkpoint)
     generator_F.load_state_dict(g_checkpoint["model_state_dict"])
-    images = next(iter(loader))
     for batch_idx, r_inputs in enumerate(loader):
 
         output_channel = r_inputs.shape[2]
@@ -198,7 +217,7 @@ if args.mode == "inference":
         # Converting list of gen outputs and reshaping
         gen_outputs = torch.stack(gen_outputs, dim=1)
         gen_outputs = gen_outputs.cpu().detach().view(inputimages, 3, args.crop_size * 4, args.crop_size * 4)
-        save_as_gif(gen_outputs, f"./output/ouput{batch_idx}.{args.videotype}")
+        save_as_gif(gen_outputs, f"./output/output{batch_idx}{args.videotype}")
 # My training loop for TecoGan
 
 elif args.mode == "train":
