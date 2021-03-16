@@ -85,6 +85,16 @@ python3 main.py --input_video_dir TrainingDataPath --max_epochs 10
 ```
 
 
+#### 3. Inference 
+
+```bash
+#for dataset
+python3 main.py --mode inference --input_dir_LR ../inference --inferencetype dataset --g_checkpoint generator.pt
+#or for video
+python3 main.py --mode inference --input_dir_LR ../inferece.mp4 --inferencetype video --g_checkpoint generator.pt
+
+```
+
 ### Acknowledgements for the originial TecoGan project
 ```
 @article{tecogan2020,
