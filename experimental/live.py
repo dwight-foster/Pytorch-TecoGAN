@@ -74,9 +74,9 @@ while (True):
     ret, frame = cap.read()
 
     # Our operations on the frame come here
-    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2BGRA)[:, :, :3]
-    next_img = torch.from_numpy(gray).permute(2, 1, 0)
-    next_img = torchvision.transforms.functional.resize(next_img, size=(args.inputsize, args.inputsize)) / 255
+    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+    next_img = torchvision.transforms.functional.to_tensor(gray)
+    next_img = torchvision.transforms.functional.resize(next_img, size=(args.inputsize, args.inputsize))
     frames.append(next_img)
     if len(frames) == 10:
         r_inputs = torch.stack(frames, dim=0).unsqueeze(0)
