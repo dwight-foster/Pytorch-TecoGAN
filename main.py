@@ -159,49 +159,45 @@ if args.mode == "inference":
         gen_warppre = []
         learning_rate = args.learning_rate
 
-        Frame_t = r_inputs[:, 1:, :, :, :]
+        Frame_t_pre = r_inputs[:, 0:-1, :, :, :]
         # Reshaping the fnet input and passing it to the model
         fnet_input = torch.reshape(Frame_t_pre, (
-            FLAGS.batch_size * (inputimages - 1), output_channel, FLAGS.crop_size, FLAGS.crop_size))
+            1 * (inputimages - 1), output_channel, args.crop_size, args.crop_size))
         # Preparing generator input
         gen_flow = upscale_four(fnet_input * 4.)
 
         gen_flow = torch.reshape(gen_flow[:, 0:2],
-                                 (FLAGS.batch_size, (inputimages - 1), 2, FLAGS.crop_size * 4, FLAGS.crop_size * 4))
-        input_frames = torch.reshape(Frame_t,
-                                     (FLAGS.batch_size * (inputimages - 1), output_channel, FLAGS.crop_size,
-                                      FLAGS.crop_size))
+                                 (1, (inputimages - 1), 2, args.crop_size * 4, args.crop_size * 4))
 
         input0 = torch.cat(
-            (r_inputs[:, 0, :, :, :], torch.zeros(size=(FLAGS.batch_size, 3 * 4 * 4, FLAGS.crop_size, FLAGS.crop_size),
+            (r_inputs[:, 0, :, :, :], torch.zeros(size=(1, 3 * 4 * 4, args.crop_size, args.crop_size),
                                                   dtype=torch.float32).cuda()), dim=1)
         # Passing inputs into model and reshaping output
         gen_pre_output = generator_F(input0.detach())
-        gen_pre_output = gen_pre_output.view(FLAGS.batch_size, 3, FLAGS.crop_size * 4, FLAGS.crop_size * 4)
+        gen_pre_output = gen_pre_output.view(1, 3, args.crop_size * 4, args.crop_size * 4)
         gen_outputs.append(gen_pre_output)
         # Getting outputs of generator for each frame
         for frame_i in range(inputimages - 1):
             cur_flow = gen_flow[:, frame_i, :, :, :]
-            cur_flow = cur_flow.view(FLAGS.batch_size, FLAGS.crop_size * 4, FLAGS.crop_size * 4, 2)
+            cur_flow = cur_flow.view(1, args.crop_size * 4, args.crop_size * 4, 2)
 
             gen_pre_output_warp = F.grid_sample(gen_pre_output, cur_flow)
             gen_warppre.append(gen_pre_output_warp)
 
             gen_pre_output_warp = preprocessLr(deprocess(gen_pre_output_warp))
-            gen_pre_output_reshape = gen_pre_output_warp.view(FLAGS.batch_size, 3, FLAGS.crop_size, 4, FLAGS.crop_size,
+            gen_pre_output_reshape = gen_pre_output_warp.view(1, 3, args.crop_size, 4, args.crop_size,
                                                               4)
             gen_pre_output_reshape = gen_pre_output_reshape.permute(0, 1, 3, 5, 2, 4)
 
             gen_pre_output_reshape = torch.reshape(gen_pre_output_reshape,
-                                                   (FLAGS.batch_size, 3 * 4 * 4, FLAGS.crop_size, FLAGS.crop_size))
+                                                   (1, 3 * 4 * 4, args.crop_size, args.crop_size))
             inputs = torch.cat((r_inputs[:, frame_i + 1, :, :, :], gen_pre_output_reshape), dim=1)
             gen_output = generator_F(inputs.detach())
             gen_outputs.append(gen_output)
             gen_pre_output = gen_output
-            gen_pre_output = gen_pre_output.view(FLAGS.batch_size, 3, FLAGS.crop_size * 4, FLAGS.crop_size * 4)
         # Converting list of gen outputs and reshaping
         gen_outputs = torch.stack(gen_outputs, dim=1)
-        gen_outputs = gen_outputs.view(args.batch_size, inputimages, 3, args.crop_size * 4, args.crop_size * 4)
+        gen_outputs = gen_outputs.cpu().detach().view(inputimages, 3, args.crop_size * 4, args.crop_size * 4)
         save_as_gif(gen_outputs, f"./output/ouput{batch_idx}.{args.videotype}")
 # My training loop for TecoGan
 

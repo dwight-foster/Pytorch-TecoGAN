@@ -15,21 +15,15 @@ import argparse
 class inference_dataset(Dataset):
     def __init__(self, FLAGS):
         filedir = FLAGS.input_dir_LR
+        self.FLAGS = FLAGS
         self.downSP = False
         if (FLAGS.input_dir_LR is None) or (not os.path.exists(FLAGS.input_dir_LR)):
             if (FLAGS.input_dir_HR is None) or (not os.path.exists(FLAGS.input_dir_HR)):
                 raise ValueError('Input directory not found')
             filedir = FLAGS.input_dir_HR
             self.downSP = True
-
-        image_list_LR_temp = os.listdir(filedir)
-        image_list_LR_temp = [_ for _ in image_list_LR_temp if _.endswith(".png")]
-        image_list_LR_temp = sorted(image_list_LR_temp)  # first sort according to abc, then sort according to 123
-        image_list_LR_temp.sort(key=lambda f: int(''.join(list(filter(str.isdigit, f))) or -1))
-        if FLAGS.input_dir_len > 0:
-            image_list_LR_temp = image_list_LR_temp[:FLAGS.input_dir_len]
-
-        self.image_list_LR = [os.path.join(filedir, _) for _ in image_list_LR_temp]
+        self.filedir = filedir
+        self.image_list_LR = os.listdir(filedir)
 
         # Read in and preprocess the images
 
@@ -38,10 +32,14 @@ class inference_dataset(Dataset):
 
     def __getitem__(self, idx):
         path = self.image_list_LR[idx]
-        image = Image.open(path)
-        image = image.crop(FLAGS.crop_size)
-        image = transforms.functional.to_tensor(image)
-        return image
+        imgs = []
+        for img in os.listdir(self.filedir + "/" + path):
+            image = Image.open(self.filedir + "/" + path + "/" + img)
+            image = transforms.functional.resize(image, size=(self.FLAGS.crop_size, self.FLAGS.crop_size))
+            image = transforms.functional.to_tensor(image)
+            imgs.append(image)
+        images = torch.stack(imgs, dim=0)
+        return images.cuda()
 
 
 class train_dataset(Dataset):
