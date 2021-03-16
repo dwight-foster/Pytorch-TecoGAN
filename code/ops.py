@@ -16,9 +16,7 @@ import torch.nn.functional as F
 import numpy as np, cv2 as cv, scipy
 from scipy import signal
 import collections
-import tensorflow as tf
-from tensorflow.python.distribute import summary_op_util
-from tensorflow.python.ops.summary_op_util import summary_scope
+
 import imageio
 
 
@@ -224,29 +222,6 @@ def gaussian_2dkernel(size=5, sig=1.):
     gkern1d = signal.gaussian(size, std=sig).reshape(size, 1)
     gkern2d = np.outer(gkern1d, gkern1d)
     return (gkern2d / gkern2d.sum())
-
-
-def torch_data_gaussDownby4(HRdata, sigma=1.5):
-    """
-    tensorflow version of the 2D down-scaling by 4 with Gaussian blur
-    sigma: the sigma used for Gaussian blur
-    return: down-scaled data
-    """
-    k_w = 1 + 2 * int(sigma * 3.0)
-    gau_k = gaussian_2dkernel(k_w, sigma)
-    gau_0 = np.zeros_like(gau_k)
-    gau_list = np.float32([
-        [gau_k, gau_0, gau_0],
-        [gau_0, gau_k, gau_0],
-        [gau_0, gau_0, gau_k]])  # only works for RGB images!
-    gau_wei = np.transpose(gau_list, [2, 3, 0, 1])
-
-    fix_gkern = tf.constant(gau_wei, dtype=tf.float32, shape=[k_w, k_w, 3, 3], name='gauss_blurWeights')
-    # shape [batch_size, crop_h, crop_w, 3]
-    cur_data = tf.nn.conv2d(HRdata, fix_gkern, strides=[1, 4, 4, 1], padding="VALID", name='gauss_downsample_4')
-    cur_data = tf.make_ndarray(cur_data)
-    cur_data = torch.from_numpy(cur_data).cuda()
-    return cur_data
 
 
 # Loading checkpoint
