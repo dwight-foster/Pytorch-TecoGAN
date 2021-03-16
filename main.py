@@ -57,8 +57,8 @@ parser.add_argument('--g_checkpoint', default=None,
                     help='If provided, the generator will be restored from the provided checkpoint')
 parser.add_argument('--d_checkpoint', default=None, nargs="?",
                     help='If provided, the discriminator will be restored from the provided checkpoint')
-parser.add_argument('--f_checkpoint', default=None, nargs="?",
-                    help='If provided, the fnet will be restored from the provided checkpoint')
+# parser.add_argument('--f_checkpoint', default=None, nargs="?",
+#                  help='If provided, the fnet will be restored from the provided checkpoint')
 parser.add_argument('--num_resblock', type=int, default=16, help='How many residual blocks are there in the generator')
 # Models for training
 parser.add_argument('--pre_trained_model', type=str2bool, default=False,
@@ -87,7 +87,7 @@ parser.add_argument('--flip', default=True, nargs="?", help='Whether random flip
 parser.add_argument('--random_crop', default=True, nargs="?", help='Whether perform the random crop')
 parser.add_argument('--movingFirstFrame', default=True, nargs="?",
                     help='Whether use constant moving first frame randomly.')
-parser.add_argument('--crop_size', default=32, nargs="?", help='The crop size of the training image')
+parser.add_argument('--crop_size', default=32, type=int, help='The crop size of the training image')
 # Training data settings
 parser.add_argument('--input_video_dir', type=str, default="../TrainingDataPath",
                     help='The directory of the video input data, for training')
@@ -149,24 +149,26 @@ if args.mode == "inference":
         dataset = inference_dataset(args)
         loader = DataLoader(dataset, batch_size=1, shuffle=False)
     elif args.inferencetype == "video":
-        cap = cv2.VideoCapture("./output/ouput0..mp4")
+        cap = cv2.VideoCapture(args.input_dir_LR)
         frames = []
 
         for k in range(int(cap.get(cv2.CAP_PROP_FRAME_COUNT))):
             # Capture frame-by-frame
             ret, frame = cap.read()
+            if not ret:
+                continue
             # Our operations on the frame come here
+
             frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
             next_img = torchvision.transforms.functional.to_tensor(frame)
             next_img = torchvision.transforms.functional.resize(next_img, size=(args.crop_size, args.crop_size))
             frames.append(next_img)
         cap.release()
-        loader = torch.stack(frames, dim=0).unsqueeze(0).cuda().unsqueeze(0)
-
+        loader = torch.stack(frames, dim=0).unsqueeze(0).unsqueeze(0)
     if args.g_checkpoint is None:
         raise ValueError("The checkpoint file is needed to perform the test")
-    generator_F = generator(3, FLAGS=args).cuda()
+    generator_F = generator(3, args=args).cuda()
 
     g_checkpoint = torch.load(args.g_checkpoint)
     generator_F.load_state_dict(g_checkpoint["model_state_dict"])
@@ -190,9 +192,9 @@ if args.mode == "inference":
 
         input0 = torch.cat(
             (r_inputs[:, 0, :, :, :], torch.zeros(size=(1, 3 * 4 * 4, args.crop_size, args.crop_size),
-                                                  dtype=torch.float32).cuda()), dim=1)
+                                                  dtype=torch.float32)), dim=1)
         # Passing inputs into model and reshaping output
-        gen_pre_output = generator_F(input0.detach())
+        gen_pre_output = generator_F(input0.cuda()).cpu()
         gen_pre_output = gen_pre_output.view(1, 3, args.crop_size * 4, args.crop_size * 4)
         gen_outputs.append(gen_pre_output)
         # Getting outputs of generator for each frame
@@ -211,7 +213,7 @@ if args.mode == "inference":
             gen_pre_output_reshape = torch.reshape(gen_pre_output_reshape,
                                                    (1, 3 * 4 * 4, args.crop_size, args.crop_size))
             inputs = torch.cat((r_inputs[:, frame_i + 1, :, :, :], gen_pre_output_reshape), dim=1)
-            gen_output = generator_F(inputs.detach())
+            gen_output = generator_F(inputs.cuda()).cpu()
             gen_outputs.append(gen_output)
             gen_pre_output = gen_output
         # Converting list of gen outputs and reshaping
@@ -227,9 +229,9 @@ elif args.mode == "train":
     dataloader = DataLoader(dataset, batch_size=args.batch_size, shuffle=True, num_workers=8)
 
     # Defining the models as well as the optimizers and lr schedulers
-    generator_F = generator(3, FLAGS=args).cuda()
+    generator_F = generator(3, args=args).cuda()
     # fnet = f_net().cuda()
-    discriminator_F = discriminator(FLAGS=args).cuda()
+    discriminator_F = discriminator(args=args).cuda()
     counter1 = 0.
     counter2 = 0.
     min_gen_loss = np.inf

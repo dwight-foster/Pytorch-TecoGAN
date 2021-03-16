@@ -59,14 +59,14 @@ def residual_block(inputs, output_channel=64, stride=1):
 
 
 class generator(nn.Module):
-    def __init__(self, gen_output_channels, FLAGS=None):
+    def __init__(self, gen_output_channels, args=None):
         super(generator, self).__init__()
 
-        if FLAGS is None:
-            raise ValueError("No FLAGS is provided for generator")
+        if args is None:
+            raise ValueError("No args is provided for generator")
 
         self.conv = nn.Sequential(conv2(51, 3, 64, 1), nn.ReLU())
-        self.num = FLAGS.num_resblock
+        self.num = args.num_resblock
         self.resids = nn.ModuleList([residual_block(64, 64, 1) for i in range(self.num)])
 
         self.conv_trans = nn.Sequential(conv2_tran(64, 3, 128, stride=2, output_padding=1), nn.ReLU()
@@ -97,10 +97,10 @@ def discriminator_block(inputs, output_channel, kernel_size, stride):
 
 
 class discriminator(nn.Module):
-    def __init__(self, FLAGS=None):
+    def __init__(self, args=None):
         super(discriminator, self).__init__()
-        if FLAGS is None:
-            raise ValueError("No FLAGS is provided for discriminator")
+        if args is None:
+            raise ValueError("No args is provided for discriminator")
 
         self.conv = nn.Sequential(conv2(27, 3, 64, 1), lrelu(0.2))
 

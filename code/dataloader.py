@@ -13,14 +13,14 @@ import argparse
 
 
 class inference_dataset(Dataset):
-    def __init__(self, FLAGS):
-        filedir = FLAGS.input_dir_LR
-        self.FLAGS = FLAGS
+    def __init__(self, args):
+        filedir = args.input_dir_LR
+        self.args = args
         self.downSP = False
-        if (FLAGS.input_dir_LR is None) or (not os.path.exists(FLAGS.input_dir_LR)):
-            if (FLAGS.input_dir_HR is None) or (not os.path.exists(FLAGS.input_dir_HR)):
+        if (args.input_dir_LR is None) or (not os.path.exists(args.input_dir_LR)):
+            if (args.input_dir_HR is None) or (not os.path.exists(args.input_dir_HR)):
                 raise ValueError('Input directory not found')
-            filedir = FLAGS.input_dir_HR
+            filedir = args.input_dir_HR
             self.downSP = True
         self.filedir = filedir
         self.image_list_LR = os.listdir(filedir)
@@ -35,7 +35,7 @@ class inference_dataset(Dataset):
         imgs = []
         for img in os.listdir(self.filedir + "/" + path):
             image = Image.open(self.filedir + "/" + path + "/" + img)
-            image = transforms.functional.resize(image, size=(self.FLAGS.crop_size, self.FLAGS.crop_size))
+            image = transforms.functional.resize(image, size=(self.args.crop_size, self.args.crop_size))
             image = transforms.functional.to_tensor(image)
             imgs.append(image)
         images = torch.stack(imgs, dim=0)
@@ -43,36 +43,36 @@ class inference_dataset(Dataset):
 
 
 class train_dataset(Dataset):
-    def __init__(self, FLAGS):
-        if FLAGS.input_video_dir == '':
+    def __init__(self, args):
+        if args.input_video_dir == '':
             raise ValueError('Video input directory input_video_dir is not provided')
-        if not os.path.exists(FLAGS.input_video_dir):
+        if not os.path.exists(args.input_video_dir):
             raise ValueError('Video input directory not found')
         self.image_list_len = []
         image_set_lists = []
-        for dir_i in range(FLAGS.str_dir, FLAGS.end_dir + 1):
-            inputDir = os.path.join(FLAGS.input_video_dir, '%s_%04d' % (FLAGS.input_video_pre, dir_i))
+        for dir_i in range(args.str_dir, args.end_dir + 1):
+            inputDir = os.path.join(args.input_video_dir, '%s_%04d' % (args.input_video_pre, dir_i))
             if os.path.exists(inputDir):  # the following names are hard coded: col_high_
-                if not os.path.exists(os.path.join(inputDir, 'col_high_%04d.png' % FLAGS.max_frm)):
+                if not os.path.exists(os.path.join(inputDir, 'col_high_%04d.png' % args.max_frm)):
                     print("Skip %s, since folder doesn't contain enough frames!" % inputDir)
                     continue
 
                 image_list = [os.path.join(inputDir, 'col_high_%04d.png' % frame_i)
-                              for frame_i in range(FLAGS.max_frm + 1)]
+                              for frame_i in range(args.max_frm + 1)]
 
                 self.image_list_len.append(os.path.join(inputDir, 'col_high_%04d.png' % frame_i)
-                                           for frame_i in range(FLAGS.max_frm + 1))
+                                           for frame_i in range(args.max_frm + 1))
 
                 for i in range(110):
                     rnn_list = image_list[i:i + 10]
                     image_set_lists.append(rnn_list)
         self.image_set_lists = image_set_lists
-        self.lr_first = transforms.RandomResizedCrop(FLAGS.crop_size)
-        self.hr_first = transforms.RandomResizedCrop(FLAGS.crop_size * 4)
+        self.lr_first = transforms.RandomResizedCrop(args.crop_size)
+        self.hr_first = transforms.RandomResizedCrop(args.crop_size * 4)
         self.hr_transforms = transforms.Compose(
-            [transforms.Resize((FLAGS.crop_size * 4, FLAGS.crop_size * 4)), transforms.ToTensor()])
+            [transforms.Resize((args.crop_size * 4, args.crop_size * 4)), transforms.ToTensor()])
         self.lr_transforms = transforms.Compose(
-            [transforms.Resize((FLAGS.crop_size, FLAGS.crop_size)), transforms.ToTensor()])
+            [transforms.Resize((args.crop_size, args.crop_size)), transforms.ToTensor()])
 
     def __len__(self):
         return len(self.image_list_len)
