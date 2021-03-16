@@ -93,7 +93,7 @@ python3 main.py --mode inference --input_dir_LR ../inference --inferencetype dat
 #or for video
 python3 main.py --mode inference --input_dir_LR ../inferece.mp4 --inferencetype video --g_checkpoint generator.pt
 
-
+```
 
 ### Acknowledgements for the originial TecoGan project
 ```
