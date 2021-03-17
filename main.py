@@ -9,6 +9,7 @@ from torchvision import datasets, transforms
 from torch.utils.data import DataLoader
 import time
 import cv2
+from torch.cuda.amp import autocast
 
 sys.path.insert(1, './code')
 
@@ -113,13 +114,15 @@ parser.add_argument('--max_epoch', default=10000000, type=int, help='The max epo
 # Dst parameters
 parser.add_argument('--ratio', default=0.01, type=float, help='The ratio between content loss and adversarial loss')
 parser.add_argument('--Dt_mergeDs', default=True, type=str2bool, help='Whether only use a merged Discriminator.')
-parser.add_argument('--Dt_ratio_0', default=1.0, type=float, help='The starting ratio for the temporal adversarial loss')
+parser.add_argument('--Dt_ratio_0', default=1.0, type=float,
+                    help='The starting ratio for the temporal adversarial loss')
 parser.add_argument('--Dt_ratio_add', default=0.0, type=float,
                     help='The increasing ratio for the temporal adversarial loss')
 parser.add_argument('--Dt_ratio_max', default=1.0, type=float, help='The max ratio for the temporal adversarial loss')
 parser.add_argument('--Dbalance', default=0.4, type=float, help='An adaptive balancing for Discriminators')
-parser.add_argument('--crop_dt', default=0.75, type=float, help='factor of dt crop')  # dt input size = crop_size*crop_dt
-parser.add_argument('--D_LAYERLOSS', default=True,type=str2bool, help='Whether use layer loss from D')
+parser.add_argument('--crop_dt', default=0.75, type=float,
+                    help='factor of dt crop')  # dt input size = crop_size*crop_dt
+parser.add_argument('--D_LAYERLOSS', default=True, type=str2bool, help='Whether use layer loss from D')
 
 args = parser.parse_args()
 os.environ["CUDA_VISIBLE_DEVICES"] = args.cudaID
@@ -156,6 +159,8 @@ if args.mode == "inference":
             frames.append(next_img)
         cap.release()
         loader = torch.stack(frames, dim=0).unsqueeze(0).unsqueeze(0)
+    else:
+        raise ValueError("Invalid data type entered. Please use either video or dataset.")
     if args.g_checkpoint is None:
         raise ValueError("The checkpoint file is needed to perform the test")
     generator_F = generator(3, args=args).cuda()
@@ -163,53 +168,54 @@ if args.mode == "inference":
     g_checkpoint = torch.load(args.g_checkpoint)
     generator_F.load_state_dict(g_checkpoint["model_state_dict"])
     with torch.no_grad():
-        for batch_idx, r_inputs in enumerate(loader):
+        with autocast():
+            for batch_idx, r_inputs in enumerate(loader):
 
-            output_channel = r_inputs.shape[2]
-            inputimages = r_inputs.shape[1]
-            gen_outputs = []
-            gen_warppre = []
-            learning_rate = args.learning_rate
+                output_channel = r_inputs.shape[2]
+                inputimages = r_inputs.shape[1]
+                gen_outputs = []
+                gen_warppre = []
+                learning_rate = args.learning_rate
 
-            Frame_t_pre = r_inputs[:, 0:-1, :, :, :]
-            # Reshaping the fnet input and passing it to the model
-            fnet_input = torch.reshape(Frame_t_pre, (
-                1 * (inputimages - 1), output_channel, args.crop_size, args.crop_size))
-            # Preparing generator input
-            gen_flow = upscale_four(fnet_input * 4.)
+                Frame_t_pre = r_inputs[:, 0:-1, :, :, :]
+                # Reshaping the fnet input and passing it to the model
+                fnet_input = torch.reshape(Frame_t_pre, (
+                    1 * (inputimages - 1), output_channel, args.crop_size, args.crop_size))
+                # Preparing generator input
+                gen_flow = upscale_four(fnet_input * 4.)
 
-            gen_flow = torch.reshape(gen_flow[:, 0:2],
-                                     (1, (inputimages - 1), 2, args.crop_size * 4, args.crop_size * 4))
+                gen_flow = torch.reshape(gen_flow[:, 0:2],
+                                         (1, (inputimages - 1), 2, args.crop_size * 4, args.crop_size * 4))
 
-            input0 = torch.cat(
-                (r_inputs[:, 0, :, :, :], torch.zeros(size=(1, 3 * 4 * 4, args.crop_size, args.crop_size),
-                                                      dtype=torch.float32)), dim=1)
-            # Passing inputs into model and reshaping output
-            gen_pre_output = generator_F(input0.cuda()).cpu()
-            gen_pre_output = gen_pre_output.view(1, 3, args.crop_size * 4, args.crop_size * 4)
-            gen_outputs.append(gen_pre_output)
-            # Getting outputs of generator for each frame
-            for frame_i in range(inputimages - 1):
-                cur_flow = gen_flow[:, frame_i, :, :, :]
-                cur_flow = cur_flow.view(1, args.crop_size * 4, args.crop_size * 4, 2)
+                input0 = torch.cat(
+                    (r_inputs[:, 0, :, :, :], torch.zeros(size=(1, 3 * 4 * 4, args.crop_size, args.crop_size),
+                                                          dtype=torch.float32)), dim=1)
+                # Passing inputs into model and reshaping output
+                gen_pre_output = generator_F(input0.cuda()).cpu()
+                gen_pre_output = gen_pre_output.view(1, 3, args.crop_size * 4, args.crop_size * 4)
+                gen_outputs.append(gen_pre_output)
+                # Getting outputs of generator for each frame
+                for frame_i in range(inputimages - 1):
+                    cur_flow = gen_flow[:, frame_i, :, :, :]
+                    cur_flow = cur_flow.view(1, args.crop_size * 4, args.crop_size * 4, 2)
 
-                gen_pre_output_warp = F.grid_sample(gen_pre_output, cur_flow)
-                gen_warppre.append(gen_pre_output_warp)
+                    gen_pre_output_warp = F.grid_sample(gen_pre_output, cur_flow)
+                    gen_warppre.append(gen_pre_output_warp)
 
-                gen_pre_output_warp = preprocessLr(deprocess(gen_pre_output_warp))
-                gen_pre_output_reshape = gen_pre_output_warp.view(1, 3, args.crop_size, 4, args.crop_size,
-                                                                  4)
-                gen_pre_output_reshape = gen_pre_output_reshape.permute(0, 1, 3, 5, 2, 4)
+                    gen_pre_output_warp = preprocessLr(deprocess(gen_pre_output_warp))
+                    gen_pre_output_reshape = gen_pre_output_warp.view(1, 3, args.crop_size, 4, args.crop_size,
+                                                                      4)
+                    gen_pre_output_reshape = gen_pre_output_reshape.permute(0, 1, 3, 5, 2, 4)
 
-                gen_pre_output_reshape = torch.reshape(gen_pre_output_reshape,
-                                                       (1, 3 * 4 * 4, args.crop_size, args.crop_size))
-                inputs = torch.cat((r_inputs[:, frame_i + 1, :, :, :], gen_pre_output_reshape), dim=1)
-                gen_output = generator_F(inputs.cuda()).cpu()
-                gen_outputs.append(gen_output)
-                gen_pre_output = gen_output
-            # Converting list of gen outputs and reshaping
-            gen_outputs = torch.stack(gen_outputs, dim=1)
-            gen_outputs = gen_outputs.cpu().detach().view(inputimages, 3, args.crop_size * 4, args.crop_size * 4)
+                    gen_pre_output_reshape = torch.reshape(gen_pre_output_reshape,
+                                                           (1, 3 * 4 * 4, args.crop_size, args.crop_size))
+                    inputs = torch.cat((r_inputs[:, frame_i + 1, :, :, :], gen_pre_output_reshape), dim=1)
+                    gen_output = generator_F(inputs.cuda()).cpu()
+                    gen_outputs.append(gen_output)
+                    gen_pre_output = gen_output
+                # Converting list of gen outputs and reshaping
+                gen_outputs = torch.stack(gen_outputs, dim=1)
+                gen_outputs = gen_outputs.cpu().detach().view(inputimages, 3, args.crop_size * 4, args.crop_size * 4)
             save_as_gif(gen_outputs, f"./output/output{batch_idx}{args.videotype}")
 # My training loop for TecoGan
 
@@ -247,8 +253,8 @@ elif args.mode == "train":
         gen_optimizer.load_state_dict(g_checkpoint["optimizer_state_dict"])
         current_epoch = g_checkpoint["epoch"]
         d_checkpoint = torch.load(args.d_checkpoint)
-        # discriminator_F.load_state_dict(d_checkpoint["model_state_dict"])
-        # tdiscrim_optimizer.load_state_dict(d_checkpoint["optimizer_state_dict"])
+        discriminator_F.load_state_dict(d_checkpoint["model_state_dict"])
+        tdiscrim_optimizer.load_state_dict(d_checkpoint["optimizer_state_dict"])
         # f_checkpoint = torch.load(args.f_checkpoint)
         # fnet.load_state_dict(f_checkpoint["model_state_dict"])
         # fnet_optimizer.load_state_dict(f_checkpoint["optimizer_state_dict"])

@@ -67,25 +67,23 @@ class generator(nn.Module):
 
         self.conv = nn.Sequential(conv2(51, 3, 64, 1), nn.ReLU())
         self.num = args.num_resblock
-        self.resids = nn.ModuleList([residual_block(64, 64, 1) for i in range(self.num)])
+        self.resids = nn.ModuleList([residual_block(64, 64, 1) for i in range(int(self.num))])
 
-        self.conv_trans = nn.Sequential(conv2_tran(64, 3, 128, stride=2, output_padding=1), nn.ReLU()
-                                        , conv2_tran(128, 3, 128, stride=2, output_padding=1), nn.ReLU(),
+        self.conv_trans = nn.Sequential(conv2_tran(64, 3, 64, stride=2, output_padding=1), nn.ReLU()
+                                        , residual_block(64, 64, 1), residual_block(64, 128, 1),
+                                        conv2_tran(128, 3, 128, stride=2, output_padding=1), nn.ReLU(),
                                         conv2(128, 3, 64, 1), nn.ReLU())
         self.output = conv2(64, 3, gen_output_channels, 1)
 
     def forward(self, x):
         net = self.conv(x)
 
-        for i in range(self.num):
-            net = self.resids[i](net) + net
+        for block in self.resids:
+            net = block(net) + net
         net = self.conv_trans(net)
         net = self.output(net)
 
-        #low_res_in = x[:, 0:3, :, :]
-        #bicubic_hi = bicubic_four(low_res_in)
-        net = net #+ bicubic_hi
-        return net
+        return torch.sigmoid(net)
 
 
 # Defining the discriminator for adversarial part
@@ -105,17 +103,20 @@ class discriminator(nn.Module):
         self.conv = nn.Sequential(conv2(27, 3, 64, 1), lrelu(0.2))
         # block1
         self.block1 = discriminator_block(64, 64, 4, 2)
-        self.resids1 = nn.ModuleList([nn.Sequential(residual_block(64, 64, 1), batchnorm(64, True)) for i in range(int(args.num_resblock/4))])
+        self.resids1 = nn.ModuleList(
+            [nn.Sequential(residual_block(64, 64, 1), batchnorm(64, True)) for i in range(int(args.num_resblock / 4))])
 
         # block2
         self.block2 = discriminator_block(64, 128, 4, 2)
-        self.resids2 = nn.ModuleList([nn.Sequential(residual_block(128, 128, 1), batchnorm(128, True)) for i in range(int(args.num_resblock / 4))])
+        self.resids2 = nn.ModuleList([nn.Sequential(residual_block(128, 128, 1), batchnorm(128, True)) for i in
+                                      range(int(args.num_resblock / 4))])
 
         # block3
-        self.block3 = discriminator_block(128, 256, 4, 2)
-        self.resids3 = nn.ModuleList([nn.Sequential(residual_block(256, 256, 1), batchnorm(256, True)) for i in range(int(args.num_resblock / 4))])
+        self.block3 = discriminator_block(128, 128, 4, 2)
+        self.resids3 = nn.ModuleList([nn.Sequential(residual_block(128, 128, 1), batchnorm(128, True)) for i in
+                                      range(int(args.num_resblock / 4))])
 
-        self.block4 = discriminator_block(256, 64, 4, 2)
+        self.block4 = discriminator_block(128, 64, 4, 2)
 
         self.fc = denselayer(4096, 1)
 
@@ -136,7 +137,6 @@ class discriminator(nn.Module):
         layer_list.append(net)
         net = self.block4(net)
         layer_list.append(net)
-
 
         net = net.view(net.shape[0], -1)
         net = self.fc(net)
