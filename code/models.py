@@ -103,57 +103,41 @@ class discriminator(nn.Module):
             raise ValueError("No args is provided for discriminator")
 
         self.conv = nn.Sequential(conv2(27, 3, 64, 1), lrelu(0.2))
-
         # block1
         self.block1 = discriminator_block(64, 64, 4, 2)
+        self.resids1 = nn.ModuleList([nn.Sequential(residual_block(64, 64, 1), batchnorm(64, True)) for i in range(int(args.num_resblock/4))])
 
         # block2
-        self.block2 = discriminator_block(64, 64, 4, 2)
+        self.block2 = discriminator_block(64, 128, 4, 2)
+        self.resids2 = nn.ModuleList([nn.Sequential(residual_block(128, 128, 1), batchnorm(128, True)) for i in range(int(args.num_resblock / 4))])
 
         # block3
-        self.block3 = discriminator_block(64, 128, 4, 2)
+        self.block3 = discriminator_block(128, 256, 4, 2)
+        self.resids3 = nn.ModuleList([nn.Sequential(residual_block(256, 256, 1), batchnorm(256, True)) for i in range(int(args.num_resblock / 4))])
 
-        # block4
-        self.block4 = discriminator_block(128, 256, 4, 2)
+        self.block4 = discriminator_block(256, 64, 4, 2)
 
-        self.block5 = discriminator_block(256, 256, 4, 2)
-
-        self.resid1 = residual_block(256, 256, 1)
-        self.bn1 = batchnorm(256, True)
-        self.resid2 = residual_block(256, 256, 1)
-        self.bn2 = batchnorm(256, True)
-        self.resid3 = residual_block(256, 128, 1)
-        self.bn3 = batchnorm(128, True)
-        self.resid4 = residual_block(128, 128, 1)
-        self.bn4 = batchnorm(128, True)
-        self.resid5 = residual_block(128, 3, 1)
-        self.bn5 = batchnorm(3, True)
-        self.relu = lrelu(0.2)
-        self.fc = denselayer(48, 1)
+        self.fc = denselayer(4096, 1)
 
     def forward(self, x):
         layer_list = []
         net = self.conv(x)
         net = self.block1(net)
+        for block in self.resids1:
+            net = block(net) + net
         layer_list.append(net)
         net = self.block2(net)
+        for block in self.resids2:
+            net = block(net) + net
         layer_list.append(net)
         net = self.block3(net)
+        for block in self.resids3:
+            net = block(net) + net
         layer_list.append(net)
         net = self.block4(net)
         layer_list.append(net)
-        net = self.block5(net)
-        layer_list.append(net)
-        net = self.bn1(self.resid1(net) + net)
-        net = self.relu(net)
-        net = self.bn2(self.resid2(net) + net)
-        net = self.relu(net)
-        net = self.bn3(self.resid3(net))
-        net = self.relu(net)
-        net = self.bn4(self.resid4(net) + net)
-        net = self.relu(net)
-        net = self.bn5(self.resid5(net))
-        net = self.relu(net)
+
+
         net = net.view(net.shape[0], -1)
         net = self.fc(net)
         net = torch.sigmoid(net)
