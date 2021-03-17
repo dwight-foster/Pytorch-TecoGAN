@@ -70,11 +70,12 @@ parser.add_argument('--vgg_ckpt', default=None, help='path to checkpoint file fo
 parser.add_argument('--cudaID', default='0', help='CUDA devices')
 parser.add_argument('--queue_thread', default=8, type=int,
                     help='The threads of the queue (More threads can speedup the training process.')
+
 # Training details
 # The data preparing operation
 
 parser.add_argument('--RNN_N', default=10, nargs="?", help='The number of the rnn recurrent length')
-parser.add_argument('--batch_size', default=4, nargs="?", help='Batch size of the input batch')
+parser.add_argument('--batch_size', default=4, type=int, help='Batch size of the input batch')
 parser.add_argument('--flip', default=True, type=str2bool, help='Whether random flip data augmentation is applied')
 parser.add_argument('--random_crop', default=True, type=str2bool, help='Whether perform the random crop')
 parser.add_argument('--movingFirstFrame', default=True, type=str2bool,
@@ -108,6 +109,7 @@ parser.add_argument('--stair', default=False, type=str2bool,
 parser.add_argument('--beta', default=0.9, type=float, help='The beta1 parameter for the Adam optimizer')
 parser.add_argument('--adameps', default=1e-8, type=float, help='The eps parameter for the Adam optimizer')
 parser.add_argument('--max_epoch', default=10000000, type=int, help='The max epoch for the training')
+
 # Dst parameters
 parser.add_argument('--ratio', default=0.01, type=float, help='The ratio between content loss and adversarial loss')
 parser.add_argument('--Dt_mergeDs', default=True, type=str2bool, help='Whether only use a merged Discriminator.')
@@ -215,7 +217,7 @@ elif args.mode == "train":
     # Defining dataset and dataloader
     dataset = train_dataset(args)
 
-    dataloader = DataLoader(dataset, batch_size=args.batch_size, shuffle=True, num_workers=args.queue_thread)
+    dataloader = DataLoader(dataset, batch_size=4, shuffle=True, num_workers=8)
 
     # Defining the models as well as the optimizers and lr schedulers
     generator_F = generator(3, args=args).cuda()
@@ -232,7 +234,8 @@ elif args.mode == "train":
                                           eps=args.adameps)
     gen_optimizer = torch.optim.Adam(generator_F.parameters(), args.learning_rate, betas=(args.beta, 0.999),
                                      eps=args.adameps)
-    # fnet_optimizer = torch.optim.Adam(fnet.parameters(), args.learning_rate, betas=(args.beta, 0.999), eps=args.adameps)
+    # fnet_optimizer = torch.optim.Adam(fnet.parameters(), args.learning_rate, betas=(args.beta, 0.999),
+    # eps=args.adameps)
     GAN_FLAG = True
     d_scheduler = torch.optim.lr_scheduler.StepLR(tdiscrim_optimizer, args.decay_step, args.decay_rate)
     g_scheduler = torch.optim.lr_scheduler.StepLR(gen_optimizer, args.decay_step, args.decay_rate)
