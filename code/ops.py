@@ -232,7 +232,7 @@ def load_ckpt(checkpoint, model):
 # Functions for saving images and gifs
 
 def save_as_gif(tensor, filepath):
-    images = np.transpose(tensor.numpy(), (0, 2, 3, 1))
+    images = np.transpose(tensor.float().numpy(), (0, 2, 3, 1))
     imageio.mimsave(filepath, images)
 
 
