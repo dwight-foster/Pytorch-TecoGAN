@@ -199,7 +199,7 @@ if args.mode == "inference":
                     cur_flow = gen_flow[:, frame_i, :, :, :]
                     cur_flow = cur_flow.view(1, args.crop_size * 4, args.crop_size * 4, 2)
 
-                    gen_pre_output_warp = F.grid_sample(gen_pre_output, cur_flow)
+                    gen_pre_output_warp = F.grid_sample(gen_pre_output.cuda(), cur_flow.cuda().half()).cpu()
                     gen_warppre.append(gen_pre_output_warp)
 
                     gen_pre_output_warp = preprocessLr(deprocess(gen_pre_output_warp))
