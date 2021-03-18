@@ -61,6 +61,10 @@ parser.add_argument('--d_checkpoint', default=None, nargs="?",
 # parser.add_argument('--f_checkpoint', default=None, nargs="?",
 #                  help='If provided, the fnet will be restored from the provided checkpoint')
 parser.add_argument('--num_resblock', type=int, default=16, help='How many residual blocks are there in the generator')
+parser.add_argument('--discrim_resblocks', type=int, default=4, help='Number of resblocks in each resnet layer in the '
+                                                                     'discriminator')
+parser.add_argument('--discrim_channels', type=int, default=128, help='How many channels to use in the last two '
+                                                                      'resnet blocks in the discriminator')
 # Models for training
 parser.add_argument('--pre_trained_model', type=str2bool, default=False,
                     help='If True, the weight of generator will be loaded as an initial point'
@@ -253,14 +257,13 @@ elif args.mode == "train":
         gen_optimizer.load_state_dict(g_checkpoint["optimizer_state_dict"])
         current_epoch = g_checkpoint["epoch"]
         d_checkpoint = torch.load(args.d_checkpoint)
-        discriminator_F.load_state_dict(d_checkpoint["model_state_dict"])
-        tdiscrim_optimizer.load_state_dict(d_checkpoint["optimizer_state_dict"])
+        #discriminator_F.load_state_dict(d_checkpoint["model_state_dict"])
+        #tdiscrim_optimizer.load_state_dict(d_checkpoint["optimizer_state_dict"])
         # f_checkpoint = torch.load(args.f_checkpoint)
         # fnet.load_state_dict(f_checkpoint["model_state_dict"])
         # fnet_optimizer.load_state_dict(f_checkpoint["optimizer_state_dict"])
     else:
         current_epoch = 0
-
     # Starting epoch loop
     since = time.time()
     for e in tqdm(range(current_epoch, args.max_epoch)):

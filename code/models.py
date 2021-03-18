@@ -99,26 +99,28 @@ class discriminator(nn.Module):
         super(discriminator, self).__init__()
         if args is None:
             raise ValueError("No args is provided for discriminator")
-
         self.conv = nn.Sequential(conv2(27, 3, 64, 1), lrelu(0.2))
         # block1
         self.block1 = discriminator_block(64, 64, 4, 2)
         self.resids1 = nn.ModuleList(
-            [nn.Sequential(residual_block(64, 64, 1), batchnorm(64, True)) for i in range(int(args.num_resblock / 4))])
+            [nn.Sequential(residual_block(64, 64, 1), batchnorm(64, True)) for i in range(int(args.discrim_resblocks))])
 
         # block2
-        self.block2 = discriminator_block(64, 128, 4, 2)
-        self.resids2 = nn.ModuleList([nn.Sequential(residual_block(128, 128, 1), batchnorm(128, True)) for i in
-                                      range(int(args.num_resblock / 4))])
+        self.block2 = discriminator_block(64, args.discrim_channels, 4, 2)
+        self.resids2 = nn.ModuleList([nn.Sequential(residual_block(args.discrim_channels, args.discrim_channels, 1),
+                                                    batchnorm(args.discrim_channels, True)) for i in range(int(args.discrim_resblocks))])
 
         # block3
-        self.block3 = discriminator_block(128, 128, 4, 2)
-        self.resids3 = nn.ModuleList([nn.Sequential(residual_block(128, 128, 1), batchnorm(128, True)) for i in
-                                      range(int(args.num_resblock / 4))])
+        self.block3 = discriminator_block(args.discrim_channels, args.discrim_channels, 4, 2)
+        self.resids3 = nn.ModuleList([nn.Sequential(residual_block(args.discrim_channels, args.discrim_channels, 1),
+                                                    batchnorm(args.discrim_channels, True)) for i in
+                                      range(int(args.discrim_resblocks))])
 
-        self.block4 = discriminator_block(128, 64, 4, 2)
+        self.block4 = discriminator_block(args.discrim_channels, 64, 4, 2)
 
-        self.fc = denselayer(4096, 1)
+        self.block5 = discriminator_block(64, 3, 4, 2)
+
+        self.fc = denselayer(48, 1)
 
     def forward(self, x):
         layer_list = []
@@ -137,7 +139,7 @@ class discriminator(nn.Module):
         layer_list.append(net)
         net = self.block4(net)
         layer_list.append(net)
-
+        net = self.block5(net)
         net = net.view(net.shape[0], -1)
         net = self.fc(net)
         net = torch.sigmoid(net)

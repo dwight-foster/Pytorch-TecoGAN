@@ -69,57 +69,53 @@ def TecoGAN(r_inputs, r_targets, discriminator_F, generator_F, args, Global_step
     # Reshaping the fnet input and passing it to the model
     with autocast():
         fnet_input = torch.reshape(Frame_t_pre, (
-            args.batch_size * (inputimages - 1), output_channel, args.crop_size, args.crop_size))
+            Frame_t_pre.shape[0] * (inputimages - 1), output_channel, args.crop_size, args.crop_size))
         # Preparing generator input
         gen_flow = upscale_four(fnet_input * 4.)
 
         gen_flow = torch.reshape(gen_flow[:, 0:2],
-                                 (args.batch_size, (inputimages - 1), 2, args.crop_size * 4, args.crop_size * 4))
+                                 (Frame_t.shape[0], (inputimages - 1), 2, args.crop_size * 4, args.crop_size * 4))
         input_frames = torch.reshape(Frame_t,
-                                     (args.batch_size * (inputimages - 1), output_channel, args.crop_size,
+                                     (Frame_t.shape[0] * (inputimages - 1), output_channel, args.crop_size,
                                       args.crop_size))
         s_input_warp = F.grid_sample(torch.reshape(Frame_t_pre, (
-            args.batch_size * (inputimages - 1), output_channel, args.crop_size, args.crop_size)),
+            Frame_t_pre.shape[0] * (inputimages - 1), output_channel, args.crop_size, args.crop_size)),
                                      torch.reshape(Frame_t[:, :, 0:2],
-                                                   (args.batch_size * (inputimages - 1), args.crop_size, args.crop_size, 2)))
+                                                   (Frame_t.shape[0] * (inputimages - 1), args.crop_size, args.crop_size, 2)))
 
         input0 = torch.cat(
-            (r_inputs[:, 0, :, :, :], torch.zeros(size=(args.batch_size, 3 * 4 * 4, args.crop_size, args.crop_size),
+            (r_inputs[:, 0, :, :, :], torch.zeros(size=(r_inputs.shape[0], 3 * 4 * 4, args.crop_size, args.crop_size),
                                                   dtype=torch.float32).cuda()), dim=1)
         # Passing inputs into model and reshaping output
         gen_pre_output = generator_F(input0.detach())
-        gen_pre_output = gen_pre_output.view(args.batch_size, 3, args.crop_size * 4, args.crop_size * 4)
+        gen_pre_output = gen_pre_output.view(gen_pre_output.shape[0], 3, args.crop_size * 4, args.crop_size * 4)
         gen_outputs.append(gen_pre_output)
         # Getting outputs of generator for each frame
         for frame_i in range(inputimages - 1):
             cur_flow = gen_flow[:, frame_i, :, :, :]
-            cur_flow = cur_flow.view(args.batch_size, args.crop_size * 4, args.crop_size * 4, 2)
+            cur_flow = cur_flow.view(cur_flow.shape[0], args.crop_size * 4, args.crop_size * 4, 2)
 
             gen_pre_output_warp = F.grid_sample(gen_pre_output, cur_flow.half())
             gen_warppre.append(gen_pre_output_warp)
 
             gen_pre_output_warp = preprocessLr(deprocess(gen_pre_output_warp))
-            gen_pre_output_reshape = gen_pre_output_warp.view(args.batch_size, 3, args.crop_size, 4, args.crop_size, 4)
+            gen_pre_output_reshape = gen_pre_output_warp.view(gen_pre_output_warp.shape[0], 3, args.crop_size, 4, args.crop_size, 4)
             gen_pre_output_reshape = gen_pre_output_reshape.permute(0, 1, 3, 5, 2, 4)
 
             gen_pre_output_reshape = torch.reshape(gen_pre_output_reshape,
-                                                   (args.batch_size, 3 * 4 * 4, args.crop_size, args.crop_size))
+                                                   (gen_pre_output_reshape.shape[0], 3 * 4 * 4, args.crop_size, args.crop_size))
             inputs = torch.cat((r_inputs[:, frame_i + 1, :, :, :], gen_pre_output_reshape), dim=1)
             gen_output = generator_F(inputs.detach())
             gen_outputs.append(gen_output)
             gen_pre_output = gen_output
-            gen_pre_output = gen_pre_output.view(args.batch_size, 3, args.crop_size * 4, args.crop_size * 4)
+            gen_pre_output = gen_pre_output.view(gen_pre_output.shape[0], 3, args.crop_size * 4, args.crop_size * 4)
         # Converting list of gen outputs and reshaping
         gen_outputs = torch.stack(gen_outputs, dim=1)
-        gen_outputs = gen_outputs.view(args.batch_size, inputimages, 3, args.crop_size * 4, args.crop_size * 4)
-
-        gen_warppre = torch.stack(gen_warppre, dim=1)
-
-        gen_warppre = gen_warppre.view(args.batch_size, inputimages - 1, 3, args.crop_size * 4, args.crop_size * 4)
+        gen_outputs = gen_outputs.view(gen_outputs.shape[0], inputimages, 3, args.crop_size * 4, args.crop_size * 4)
 
         s_gen_output = torch.reshape(gen_outputs,
-                                     (args.batch_size * inputimages, 3, args.crop_size * 4, args.crop_size * 4))
-        s_targets = torch.reshape(r_targets, (args.batch_size * inputimages, 3, args.crop_size * 4, args.crop_size * 4))
+                                     (gen_outputs.shape[0] * inputimages, 3, args.crop_size * 4, args.crop_size * 4))
+        s_targets = torch.reshape(r_targets, (r_targets.shape[0] * inputimages, 3, args.crop_size * 4, args.crop_size * 4))
 
         update_list = []
         update_list_name = []
@@ -133,10 +129,10 @@ def TecoGAN(r_inputs, r_targets, discriminator_F, generator_F, args, Global_step
         if (GAN_FLAG):
             t_size = int(3 * (inputimages // 3))
             t_gen_output = torch.reshape(gen_outputs[:, :t_size, :, :, :],
-                                         (args.batch_size * t_size, 3, args.crop_size * 4, args.crop_size * 4))
+                                         (gen_outputs.shape[0] * t_size, 3, args.crop_size * 4, args.crop_size * 4))
             t_targets = torch.reshape(r_targets[:, :t_size, :, :, :],
-                                      (args.batch_size * t_size, 3, args.crop_size * 4, args.crop_size * 4))
-            t_batch = args.batch_size * t_size // 3
+                                      (r_targets.shape[0] * t_size, 3, args.crop_size * 4, args.crop_size * 4))
+            t_batch = r_targets.shape[0] * t_size // 3
 
             # Preparing inputs for discriminator
             if not args.pingpang:
@@ -147,7 +143,7 @@ def TecoGAN(r_inputs, r_targets, discriminator_F, generator_F, args, Global_step
                 gen_flow_back = upscale_four(fnet_input_back[:, 0:2] * 4.0)
 
                 gen_flow_back = torch.reshape(gen_flow_back,
-                                              (args.batch_size, t_size // 3, 2, args.crop_size * 4, args.crop_size * 4))
+                                              (gen_flow_back.shape[0], t_size // 3, 2, args.crop_size * 4, args.crop_size * 4))
 
                 T_inputs_VPre_batch = identity(gen_flow[:, 0:t_size:3, :, :, :])
                 T_inputs_V_batch = torch.zeros_like(T_inputs_VPre_batch)
@@ -159,7 +155,7 @@ def TecoGAN(r_inputs, r_targets, discriminator_F, generator_F, args, Global_step
                 T_inputs_VNxt_batch = torch.flip(gen_flow, dims=[1])[:, 1: t_size:3, :, :, :]
 
             T_vel = torch.stack([T_inputs_VPre_batch, T_inputs_V_batch, T_inputs_VNxt_batch], axis=2)
-            T_vel = torch.reshape(T_vel, (args.batch_size * t_size, args.crop_size * 4, args.crop_size * 4, 2))
+            T_vel = torch.reshape(T_vel, (T_vel.shape[0] * t_size, args.crop_size * 4, args.crop_size * 4, 2))
             T_vel = T_vel.detach()
 
             if args.crop_dt < 1.0:
@@ -354,7 +350,7 @@ def TecoGAN(r_inputs, r_targets, discriminator_F, generator_F, args, Global_step
 
         update_list_avg += [counter1, counter2]
         update_list_name += ["withD_counter", "w_o_D_counter"]
-    max_outputs = min(4, args.batch_size)
+    max_outputs = min(4, r_targets.shape[0])
     # Returning output tuple
     Network = collections.namedtuple('Network', 'gen_output, learning_rate, update_list, '
                                                 'update_list_name, update_list_avg, global_step, d_loss, gen_loss, '
