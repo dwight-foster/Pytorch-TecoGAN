@@ -8,6 +8,7 @@ import torchvision
 import cv2
 import torch
 import torch.nn.functional  as F
+from torch.cuda.amp import autocast
 
 sys.path.insert(1, './code')
 
@@ -78,45 +79,48 @@ while (True):
     next_img = torchvision.transforms.functional.to_tensor(gray)
     next_img = torchvision.transforms.functional.resize(next_img, size=(args.inputsize, args.inputsize))
     frames.append(next_img)
+
     if len(frames) == 10:
-        r_inputs = torch.stack(frames, dim=0).unsqueeze(0)
-        Frame_t_pre = r_inputs[:, 0:-1, :, :, :]
-        # Reshaping the fnet input and passing it to the model
-        fnet_input = torch.reshape(Frame_t_pre, (
-            1 * (10 - 1), 3, args.inputsize, args.inputsize))
-        # Preparing generator input
-        gen_flow = upscale_four(fnet_input * 4.)
+        with torch.no_grad():
+            with autocast():
+                r_inputs = torch.stack(frames, dim=0).unsqueeze(0)
+                Frame_t_pre = r_inputs[:, 0:-1, :, :, :]
+                # Reshaping the fnet input and passing it to the model
+                fnet_input = torch.reshape(Frame_t_pre, (
+                    1 * (10 - 1), 3, args.inputsize, args.inputsize))
+                # Preparing generator input
+                gen_flow = upscale_four(fnet_input * 4.)
 
-        gen_flow = torch.reshape(gen_flow[:, 0:2],
-                                 (1, (10 - 1), 2, args.inputsize * 4, args.inputsize * 4))
-        input0 = torch.cat(
-            (r_inputs[:, 0, :, :, :], torch.zeros(size=(1, 3 * 4 * 4, args.inputsize, args.inputsize),
-                                                  dtype=torch.float32)), dim=1)
-        # Passing inputs into model and reshaping output
-        gen_pre_output = Generator(input0.cuda()).cpu()
-        gen_pre_output = gen_pre_output.view(1, 3, args.inputsize * 4, args.inputsize * 4)
-        for frame_i in range(10 - 1):
-            cur_flow = gen_flow[:, frame_i, :, :, :]
-            cur_flow = cur_flow.view(1, args.inputsize * 4, args.inputsize * 4, 2)
+                gen_flow = torch.reshape(gen_flow[:, 0:2],
+                                         (1, (10 - 1), 2, args.inputsize * 4, args.inputsize * 4))
+                input0 = torch.cat(
+                    (r_inputs[:, 0, :, :, :], torch.zeros(size=(1, 3 * 4 * 4, args.inputsize, args.inputsize),
+                                                          dtype=torch.float32)), dim=1)
+                # Passing inputs into model and reshaping output
+                gen_pre_output = Generator(input0.cuda()).cpu()
+                gen_pre_output = gen_pre_output.view(1, 3, args.inputsize * 4, args.inputsize * 4)
+                for frame_i in range(10 - 1):
+                    cur_flow = gen_flow[:, frame_i, :, :, :]
+                    cur_flow = cur_flow.view(1, args.inputsize * 4, args.inputsize * 4, 2)
 
-            gen_pre_output_warp = F.grid_sample(gen_pre_output, cur_flow)
+                    gen_pre_output_warp = F.grid_sample(gen_pre_output.cuda(), cur_flow.cuda().half()).cpu()
 
-            gen_pre_output_reshape = gen_pre_output_warp.view(1, 3, args.inputsize, 4, args.inputsize,
-                                                              4)
-            gen_pre_output_reshape = gen_pre_output_reshape.permute(0, 1, 3, 5, 2, 4)
+                    gen_pre_output_reshape = gen_pre_output_warp.view(1, 3, args.inputsize, 4, args.inputsize,
+                                                                      4)
+                    gen_pre_output_reshape = gen_pre_output_reshape.permute(0, 1, 3, 5, 2, 4)
 
-            gen_pre_output_reshape = torch.reshape(gen_pre_output_reshape,
-                                                   (1, 3 * 4 * 4, args.inputsize, args.inputsize))
-            inputs = torch.cat((r_inputs[:, frame_i + 1, :, :, :], gen_pre_output_reshape), dim=1)
-            gen_output = Generator(inputs.cuda()).cpu()
-            gen_pre_output = gen_output
-            cv2.imshow('frame', gen_output.squeeze(0).permute(2, 1, 0).detach().numpy())
+                    gen_pre_output_reshape = torch.reshape(gen_pre_output_reshape,
+                                                           (1, 3 * 4 * 4, args.inputsize, args.inputsize))
+                    inputs = torch.cat((r_inputs[:, frame_i + 1, :, :, :], gen_pre_output_reshape), dim=1)
+                    gen_output = Generator(inputs.cuda()).cpu()
+                    gen_pre_output = gen_output
+                cv2.imshow('frame', gen_output.float().squeeze(0).permute(2, 1, 0).detach().numpy())
         frames = []
 
     # Display the resulting frame
     if cv2.waitKey(1) & 0xFF == ord('q'):
         break
 
-# When ev erything done, release the capture
+# When everything done, release the capture
 cap.release()
 cv2.destroyAllWindows()

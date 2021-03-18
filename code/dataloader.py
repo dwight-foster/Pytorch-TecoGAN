@@ -39,7 +39,7 @@ class inference_dataset(Dataset):
             image = transforms.functional.to_tensor(image)
             imgs.append(image)
         images = torch.stack(imgs, dim=0)
-        return images.cuda()
+        return images
 
 
 class train_dataset(Dataset):

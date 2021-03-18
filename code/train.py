@@ -68,7 +68,6 @@ def TecoGAN(r_inputs, r_targets, discriminator_F, generator_F, args, Global_step
     Frame_t = r_inputs[:, 1:, :, :, :]
     # Reshaping the fnet input and passing it to the model
     with autocast():
-
         fnet_input = torch.reshape(Frame_t_pre, (
             args.batch_size * (inputimages - 1), output_channel, args.crop_size, args.crop_size))
         # Preparing generator input
@@ -82,7 +81,7 @@ def TecoGAN(r_inputs, r_targets, discriminator_F, generator_F, args, Global_step
         s_input_warp = F.grid_sample(torch.reshape(Frame_t_pre, (
             args.batch_size * (inputimages - 1), output_channel, args.crop_size, args.crop_size)),
                                      torch.reshape(Frame_t[:, :, 0:2],
-                                                   (args.batch_size * (inputimages - 1), 32, 32, 2)))
+                                                   (args.batch_size * (inputimages - 1), args.crop_size, args.crop_size, 2)))
 
         input0 = torch.cat(
             (r_inputs[:, 0, :, :, :], torch.zeros(size=(args.batch_size, 3 * 4 * 4, args.crop_size, args.crop_size),
@@ -217,7 +216,7 @@ def TecoGAN(r_inputs, r_targets, discriminator_F, generator_F, args, Global_step
 
                 layer_loss_list = []
                 layer_n = len(real_layers)
-                layer_norm = [12.0, 14.0, 24.0, 48.0, 100.0]
+                layer_norm = [12.0, 14.0, 24.0, 100.0]
                 for layer_i in range(layer_n):
                     real_layer = real_layers[layer_i]
                     false_layer = fake_layers[layer_i]
