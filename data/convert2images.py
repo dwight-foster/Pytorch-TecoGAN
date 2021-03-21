@@ -34,7 +34,7 @@ num_folders = len(folders)
 for n in tqdm(range(num_folders)):
     videos = os.listdir(args.VideoDir + folders[n])
     num_videos = len(videos)
-    for i in tqdm( range(0, num_videos)):
+    for i in tqdm(range(0, num_videos)):
 
         if not os.path.isdir(args.VideoDir):
             print("Input folder does not exist!")
