@@ -15,8 +15,12 @@ sys.path.insert(1, './Pytorch-TecoGAN/code/')
 If you are using a different size crop which I recommend 
 because colab has more gpu memory you will have to change 
 the input size of the discriminator linear layer. Double click
-models.py and change it to 192 for 64x64 images. This takes about 
-15gb of data and 2 minutes and 40 seconds per epoch on a Tesla T4
+models.py and go to line 123. For 256x256 high resolution images you need to change the input dim to 192 like this:
+```python
+        self.fc = denselayer(192, 1)
+
+```
+This takes about 15gb of data and 2 minutes and 40 seconds per epoch on a Tesla T4
 
 #Kaggle Dataset
 You will also need to download the kaggle dataset I created 
