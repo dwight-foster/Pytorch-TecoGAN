@@ -286,11 +286,11 @@ elif args.mode == "train":
         save_as_gif(targets[0].cpu().data, "real.gif")
         save_as_gif(inputs[0].cpu().data, "original.gif")
         torchvision.utils.save_image(
-            output.gen_output.view(args.batch_size * (args.RNN_N * 2 - 1), 3, args.crop_size * 4, args.crop_size * 4),
+            output.gen_output.view(targets.shape[0] * (args.RNN_N * 2 - 1), 3, args.crop_size * 4, args.crop_size * 4),
             fp="Gan_examples.jpg")
         torchvision.utils.save_image(
-            targets.view(args.batch_size * args.RNN_N, 3, args.crop_size * 4, args.crop_size * 4), fp="real_image.jpg")
-        torchvision.utils.save_image(inputs.view(args.batch_size * args.RNN_N, 3, args.crop_size, args.crop_size),
+            targets.view(targets.shape[0] * args.RNN_N, 3, args.crop_size * 4, args.crop_size * 4), fp="real_image.jpg")
+        torchvision.utils.save_image(inputs.view(targets.shape[0] * args.RNN_N, 3, args.crop_size, args.crop_size),
                                      fp="original_image.jpg")
         # Updating the lr schedulers
         d_scheduler.step()

@@ -53,7 +53,7 @@ class train_dataset(Dataset):
         for dir_i in range(args.str_dir, args.end_dir + 1):
             inputDir = os.path.join(args.input_video_dir, '%s_%04d' % (args.input_video_pre, dir_i))
             if os.path.exists(inputDir):  # the following names are hard coded: col_high_
-                if not os.path.exists(os.path.join(inputDir, 'col_high_%04d.png' % args.max_frm)):
+                if len(os.listdir(inputDir)) < 120:
                     print("Skip %s, since folder doesn't contain enough frames!" % inputDir)
                     continue
 
