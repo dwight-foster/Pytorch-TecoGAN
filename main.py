@@ -298,7 +298,7 @@ elif args.mode == "train":
         g_scheduler.step()
         # Printing out metrics
         print("Epoch: {}".format(e + 1))
-        print("\nGenerator loss is: {} \nDiscriminator loss is: {}".format(d_loss, g_loss))
+        print("\nGenerator loss is: {} \nDiscriminator loss is: {}".format(g_loss, d_loss))
         for param_group in gen_optimizer.param_groups:
             gen_lr = param_group["lr"]
         for param_group in tdiscrim_optimizer.param_groups:
