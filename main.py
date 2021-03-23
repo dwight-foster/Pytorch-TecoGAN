@@ -254,8 +254,8 @@ elif args.mode == "train":
         gen_optimizer.load_state_dict(g_checkpoint["optimizer_state_dict"])
         current_epoch = g_checkpoint["epoch"]
         d_checkpoint = torch.load(args.d_checkpoint)
-        # discriminator_F.load_state_dict(d_checkpoint["model_state_dict"])
-        # tdiscrim_optimizer.load_state_dict(d_checkpoint["optimizer_state_dict"])
+        discriminator_F.load_state_dict(d_checkpoint["model_state_dict"])
+        tdiscrim_optimizer.load_state_dict(d_checkpoint["optimizer_state_dict"])
         # f_checkpoint = torch.load(args.f_checkpoint)
         # fnet.load_state_dict(f_checkpoint["model_state_dict"])
         # fnet_optimizer.load_state_dict(f_checkpoint["optimizer_state_dict"])
