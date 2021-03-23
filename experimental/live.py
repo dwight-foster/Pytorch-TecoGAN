@@ -70,17 +70,20 @@ x1 = torchvision.transforms.functional.to_pil_image(x.squeeze(0))
 x1.show()"""
 
 frames = []
+
 while (True):
     # Capture frame-by-frame
     ret, frame = cap.read()
 
     # Our operations on the frame come here
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+    gray = cv2.resize(gray, (args.inputsize, args.inputsize), interpolation=cv2.INTER_AREA)
+
     next_img = torchvision.transforms.functional.to_tensor(gray)
-    next_img = torchvision.transforms.functional.resize(next_img, size=(args.inputsize, args.inputsize))
     frames.append(next_img)
 
     if len(frames) == 10:
+        gen_outputs = []
         with torch.no_grad():
             with autocast():
                 r_inputs = torch.stack(frames, dim=0).unsqueeze(0)
@@ -100,6 +103,7 @@ while (True):
                 gen_pre_output = Generator(input0.cuda()).cpu()
                 gen_pre_output = gen_pre_output.view(1, 3, args.inputsize * 4, args.inputsize * 4)
                 for frame_i in range(10 - 1):
+
                     cur_flow = gen_flow[:, frame_i, :, :, :]
                     cur_flow = cur_flow.view(1, args.inputsize * 4, args.inputsize * 4, 2)
 
@@ -114,11 +118,16 @@ while (True):
                     inputs = torch.cat((r_inputs[:, frame_i + 1, :, :, :], gen_pre_output_reshape), dim=1)
                     gen_output = Generator(inputs.cuda()).cpu()
                     gen_pre_output = gen_output
-                cv2.imshow('frame', gen_output.float().squeeze(0).permute(2, 1, 0).detach().numpy())
+                    gen_outputs.append(gen_output)
+                    cv2.imshow('frame', gen_output.float().cpu().squeeze(0).permute(1, 2, 0).numpy())
+                gen_outputs = torch.stack(gen_outputs, dim=1)
+                gen_outputs = gen_outputs.cpu().detach().view(9, 3, args.inputsize * 4, args.inputsize * 4)
+
         frames = []
 
     # Display the resulting frame
     if cv2.waitKey(1) & 0xFF == ord('q'):
+
         break
 
 # When everything done, release the capture

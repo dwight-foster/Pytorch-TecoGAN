@@ -145,7 +145,6 @@ if args.mode == "inference":
     elif args.inferencetype == "video":
         cap = cv2.VideoCapture(args.input_dir_LR)
         frames = []
-
         for k in range(int(cap.get(cv2.CAP_PROP_FRAME_COUNT))):
             # Capture frame-by-frame
             ret, frame = cap.read()
@@ -154,12 +153,13 @@ if args.mode == "inference":
             # Our operations on the frame come here
 
             frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-
+            frame = cv2.resize(frame, (args.crop_size, args.crop_size), interpolation=cv2.INTER_AREA)
             next_img = torchvision.transforms.functional.to_tensor(frame)
-            next_img = torchvision.transforms.functional.resize(next_img, size=(args.crop_size, args.crop_size))
+
             frames.append(next_img)
         cap.release()
         loader = torch.stack(frames, dim=0).unsqueeze(0).unsqueeze(0)
+
     else:
         raise ValueError("Invalid data type entered. Please use either video or dataset.")
     if args.g_checkpoint is None:
@@ -216,7 +216,7 @@ if args.mode == "inference":
                     gen_pre_output = gen_output
                 # Converting list of gen outputs and reshaping
                 gen_outputs = torch.stack(gen_outputs, dim=1)
-                gen_outputs = gen_outputs.cpu().detach().view(inputimages, 3, args.crop_size * 4, args.crop_size * 4)
+                gen_outputs = gen_outputs.cpu().squeeze(0)
             save_as_gif(gen_outputs, f"./output/output{batch_idx}{args.videotype}")
 # My training loop for TecoGan
 
@@ -254,8 +254,8 @@ elif args.mode == "train":
         gen_optimizer.load_state_dict(g_checkpoint["optimizer_state_dict"])
         current_epoch = g_checkpoint["epoch"]
         d_checkpoint = torch.load(args.d_checkpoint)
-        discriminator_F.load_state_dict(d_checkpoint["model_state_dict"])
-        tdiscrim_optimizer.load_state_dict(d_checkpoint["optimizer_state_dict"])
+        # discriminator_F.load_state_dict(d_checkpoint["model_state_dict"])
+        # tdiscrim_optimizer.load_state_dict(d_checkpoint["optimizer_state_dict"])
         # f_checkpoint = torch.load(args.f_checkpoint)
         # fnet.load_state_dict(f_checkpoint["model_state_dict"])
         # fnet_optimizer.load_state_dict(f_checkpoint["optimizer_state_dict"])
@@ -282,9 +282,10 @@ elif args.mode == "train":
             d_loss = d_loss + ((1 / (batch_idx + 1)) * (output.d_loss.data - d_loss))
 
         # Saving outputs as gifs and images
-        save_as_gif(output.gen_output[0][:args.RNN_N].cpu().data, "gan.gif")
-        save_as_gif(targets[0].cpu().data, "real.gif")
-        save_as_gif(inputs[0].cpu().data, "original.gif")
+        index = np.random.randint(0, targets.shape[0])
+        save_as_gif(output.gen_output[index][:args.RNN_N].cpu().data, "gan.gif")
+        save_as_gif(targets[index].cpu().data, "real.gif")
+        save_as_gif(inputs[index].cpu().data, "original.gif")
         torchvision.utils.save_image(
             output.gen_output.view(targets.shape[0] * (args.RNN_N * 2 - 1), 3, args.crop_size * 4, args.crop_size * 4),
             fp="Gan_examples.jpg")

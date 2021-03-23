@@ -37,6 +37,7 @@ class inference_dataset(Dataset):
             image = Image.open(self.filedir + "/" + path + "/" + img)
             image = transforms.functional.resize(image, size=(self.args.crop_size, self.args.crop_size))
             image = transforms.functional.to_tensor(image)
+
             imgs.append(image)
         images = torch.stack(imgs, dim=0)
         return images
@@ -84,11 +85,12 @@ class train_dataset(Dataset):
         for i in range(len(rnn_images)):
             hr_image = Image.open(rnn_images[i])
             lr_image = hr_image
+
+            hr_image = self.hr_transforms(hr_image)
+            lr_image = self.lr_transforms(lr_image)
             if i == 0:
                 hr_image = self.hr_first(hr_image)
                 lr_image = self.lr_first(lr_image)
-            hr_image = self.hr_transforms(hr_image)
-            lr_image = self.lr_transforms(lr_image)
             lr_images.append(lr_image.unsqueeze(0))
             hr_images.append(hr_image.unsqueeze(0))
         hr_images = torch.cat(hr_images, dim=0)
