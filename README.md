@@ -23,7 +23,7 @@ First thing I did was I added a few resblocks to the discriminator and increased
 
 It took my 2080 and i7 9700k about 22 hours to run 2100 epochs with 408 scenes. Now with fp16 support my model trains much faster. On my 2080 with the tensors cores it will train 2000 epochs in about 17 hours which is a huge difference. Also with half precision my gpu memory has lowered from 7gb to 4gb but it is now 5gb with the new discriminator model. 
 
-##Colab 
+## Colab 
 To use this notebook in colab open the colab folder and follow the instructions in the readme
 
 ### Additional Generated Outputs
