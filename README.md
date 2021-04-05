@@ -22,6 +22,10 @@ Do not worry about NAN losses for the first epoch. It only happens once and then
 First thing I did was I added a few resblocks to the discriminator and increased the size of the fnet model. I also removed the addition of the bilinear upsampled image to the geneator which let it upsample the image by itself and will hopefully increase the final detail. I removed the fnet model completely now. This led to much higher quality in the images with little to no loss in video continuity. I trained the new models for 2000 epochs and was finally able to break the full detail barrier. Now the gan gif and real gif are much more similar. The gan has finally learned the smaller details like the deep green of the grass and the lines in the netting. Also to train I am using the UCF101 dataset by converting it to photos using the convert2images script to train the model. 
 
 It took my 2080 and i7 9700k about 22 hours to run 2100 epochs with 408 scenes. Now with fp16 support my model trains much faster. On my 2080 with the tensors cores it will train 2000 epochs in about 17 hours which is a huge difference. Also with half precision my gpu memory has lowered from 7gb to 4gb but it is now 5gb with the new discriminator model. 
+
+##Colab 
+To use this notebook in colab open the colab folder and follow the instructions in the readme
+
 ### Additional Generated Outputs
 
 Our method generates fine details that 
