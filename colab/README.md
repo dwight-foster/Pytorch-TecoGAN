@@ -1,5 +1,5 @@
 # Colab Notebook
-[![Open In Colab](https://colab.research.google.com/drive/1U7OR6zdhiCzfeQ-x77Sl0suE9ijRknnv?usp=sharing)
+[![Open In Colab](https://colab.research.google.com/drive/1U7OR6zdhiCzfeQ-x77Sl0suE9ijRknnv?userstoinvite=capitalfuert%40gmail.com&actionButton=1)
 
 This is the folder for the colab version of this repository. Some minor changes had to be
 made to main.py and models.py. When you load into the colab 
