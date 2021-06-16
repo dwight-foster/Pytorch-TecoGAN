@@ -254,8 +254,8 @@ elif args.mode == "train":
         gen_optimizer.load_state_dict(g_checkpoint["optimizer_state_dict"])
         current_epoch = g_checkpoint["epoch"]
         d_checkpoint = torch.load(args.d_checkpoint)
-        # discriminator_F.load_state_dict(d_checkpoint["model_state_dict"])
-        # tdiscrim_optimizer.load_state_dict(d_checkpoint["optimizer_state_dict"])
+        discriminator_F.load_state_dict(d_checkpoint["model_state_dict"])
+        tdiscrim_optimizer.load_state_dict(d_checkpoint["optimizer_state_dict"])
         # f_checkpoint = torch.load(args.f_checkpoint)
         # fnet.load_state_dict(f_checkpoint["model_state_dict"])
         # fnet_optimizer.load_state_dict(f_checkpoint["optimizer_state_dict"])
@@ -298,7 +298,7 @@ elif args.mode == "train":
         g_scheduler.step()
         # Printing out metrics
         print("Epoch: {}".format(e + 1))
-        print("\nGenerator loss is: {} \nDiscriminator loss is: {}".format(d_loss, g_loss))
+        print("\nGenerator loss is: {} \nDiscriminator loss is: {}".format(g_loss, d_loss))
         for param_group in gen_optimizer.param_groups:
             gen_lr = param_group["lr"]
         for param_group in tdiscrim_optimizer.param_groups:
