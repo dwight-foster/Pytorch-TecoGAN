@@ -110,7 +110,7 @@ parser.add_argument('--stair', default=False, type=str2bool,
                     help='Whether perform staircase decay. True => decay in discrete interval.')
 parser.add_argument('--beta', default=0.9, type=float, help='The beta1 parameter for the Adam optimizer')
 parser.add_argument('--adameps', default=1e-8, type=float, help='The eps parameter for the Adam optimizer')
-parser.add_argument('--max_epoch', default=10000000, type=int, help='The max epoch for the training')
+parser.add_argument('--max_epochs', default=10000000, type=int, help='The max epoch for the training')
 
 # Dst parameters
 parser.add_argument('--ratio', default=0.01, type=float, help='The ratio between content loss and adversarial loss')
