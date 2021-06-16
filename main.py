@@ -263,7 +263,7 @@ elif args.mode == "train":
         current_epoch = 0
     # Starting epoch loop
     since = time.time()
-    for e in tqdm(range(current_epoch, args.max_epoch)):
+    for e in tqdm(range(current_epoch, args.max_epochs)):
         d_loss = 0.
         g_loss = 0.
         f_loss = 0.
