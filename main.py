@@ -88,8 +88,8 @@ parser.add_argument('--input_video_dir', type=str, default="../TrainingDataPath"
                     help='The directory of the video input data, for training')
 parser.add_argument('--input_video_pre', default='scene', type=str,
                     help='The pre of the directory of the video input data')
-parser.add_argument('--str_dir', default=2000, type=int, help='The starting index of the video directory')
-parser.add_argument('--end_dir', default=2400, type=int, help='The ending index of the video directory')
+parser.add_argument('--str_dir', default=1000, type=int, help='The starting index of the video directory')
+parser.add_argument('--end_dir', default=1400, type=int, help='The ending index of the video directory')
 parser.add_argument('--end_dir_val', default=2050, type=int,
                     help='The ending index for validation of the video directory')
 parser.add_argument('--max_frm', default=119, type=int, help='The ending index of the video directory')
@@ -280,14 +280,13 @@ elif args.mode == "train":
             g_loss = g_loss + ((1 / (batch_idx + 1)) * (output.gen_loss.data - g_loss))
 
             d_loss = d_loss + ((1 / (batch_idx + 1)) * (output.d_loss.data - d_loss))
-
         # Saving outputs as gifs and images
         index = np.random.randint(0, targets.shape[0])
         save_as_gif(output.gen_output[index][:args.RNN_N].cpu().data, "gan.gif")
         save_as_gif(targets[index].cpu().data, "real.gif")
         save_as_gif(inputs[index].cpu().data, "original.gif")
         torchvision.utils.save_image(
-            output.gen_output.view(targets.shape[0] * (args.RNN_N * 2 - 1), 3, args.crop_size * 4, args.crop_size * 4),
+            output.gen_output.view(output.gen_output.shape[0] * output.gen_output.shape[1], 3, args.crop_size * 4, args.crop_size * 4),
             fp="Gan_examples.jpg")
         torchvision.utils.save_image(
             targets.view(targets.shape[0] * args.RNN_N, 3, args.crop_size * 4, args.crop_size * 4), fp="real_image.jpg")
