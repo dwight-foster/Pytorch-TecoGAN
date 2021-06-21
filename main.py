@@ -224,7 +224,7 @@ elif args.mode == "train":
     # Defining dataset and dataloader
     dataset = train_dataset(args)
 
-    dataloader = DataLoader(dataset, batch_size=4, shuffle=True, num_workers=8)
+    dataloader = DataLoader(dataset, batch_size=4, shuffle=True)
 
     # Defining the models as well as the optimizers and lr schedulers
     generator_F = generator(3, args=args).cuda()
