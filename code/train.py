@@ -140,7 +140,7 @@ def TecoGAN(r_inputs, r_targets, discriminator_F, generator_F, args, Global_step
                 fnet_input_back = torch.reshape(fnet_input_back,
                                                 (t_batch, 2 * output_channel, args.crop_size, args.crop_size))
 
-                gen_flow_back = upscale_four(fnet_input_back[0:4] * 4.0)
+                gen_flow_back = upscale_four(fnet_input_back[0:gen_flow.shape[0]] * 4.0)
                 gen_flow_back = torch.reshape(gen_flow_back,
                                               (gen_flow_back.shape[0], t_size // 3, 2, args.crop_size * 4, args.crop_size * 4))
 
